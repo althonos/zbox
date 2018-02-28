@@ -1,0 +1,35 @@
+sudo: false
+language: python
+cache:
+  directories:
+  - "$CARGO_HOME"
+  - "$HOME/.pip/cache"
+
+env:
+  global:
+  - CARGO_HOME="$HOME/.cargo"
+  - PATH="$PATH:$CARGO_HOME/bin"
+
+python:
+- '2.7'
+- '3.5'
+- '3.6'
+- nightly
+
+before_install:
+- curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
+- pip install -U setuptools setuptools-rust docutils Pygments
+
+install:
+- python setup.py build
+- pip install .
+
+script:
+- python setup.py test
+
+before_deploy:
+- python setup.py check -rms sdist
+
+notifications:
+  email:
+  - althonosdev@gmail.com
