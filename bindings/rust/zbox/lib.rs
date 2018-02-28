@@ -1,19 +1,18 @@
 #![feature(proc_macro, specialization, const_fn)]
+#![allow(unused_imports)]
 
+#[macro_use]
 extern crate pyo3;
 extern crate zbox;
 
-mod repo;
+mod error;
 mod file;
+mod repo;
+mod utils;
 
 use pyo3::prelude::*;
 
-#[py::class(subclass)]
-struct File {
-    token: PyToken,
-}
-
-#[py::modinit(zbox)]
+#[py::modinit(_zbox)]
 fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {
     // let authors_re = regex::Regex::new(r"(.*) <(.*)>").unwrap();
     // if let Some(captures) = authors_re.captures(env!("CARGO_PKG_AUTHORS")) {

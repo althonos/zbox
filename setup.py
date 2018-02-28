@@ -10,7 +10,7 @@ setuptools.setup(
     ],
     rust_extensions=[
         rust.RustExtension(
-            "bindings.rust.zbox",
+            "bindings.rust.zbox._zbox",
             "bindings/rust/zbox/Cargo.toml",
             binding=rust.Binding.PyO3,
             strip=rust.Strip.Debug,

@@ -1,10 +1,13 @@
-use std::error::Error;
+use std::error::Error as StdError;
 use std::time::UNIX_EPOCH;
 
 use pyo3::prelude::*;
 use pyo3::exc;
 
 use zbox;
+
+use file::File;
+use error::Error;
 
 #[py::class(subclass)]
 pub struct Repo {
@@ -13,8 +16,12 @@ pub struct Repo {
 }
 
 impl Repo {
+    pub fn new(token: PyToken, repo: zbox::Repo) -> Self {
+        Self { token, repo }
+    }
+
     // FIXME: no unwrap if possible !
-    fn dict_from_metadata(&self, metadata: &zbox::Metadata) -> &PyDict {
+    pub fn dict_from_metadata(&self, metadata: &zbox::Metadata) -> &PyDict {
         let metadict = PyDict::new(self.token.py());
         metadict.set_item("is_dir", metadata.is_dir()).unwrap_or(());
         metadict
@@ -37,7 +44,7 @@ impl Repo {
     }
 
     // FIXME: no unwrap if possible !
-    fn dict_from_direntry(&self, entry: &zbox::DirEntry) -> &PyDict {
+    pub fn dict_from_direntry(&self, entry: &zbox::DirEntry) -> &PyDict {
         let entrydict = PyDict::new(self.token.py());
         entrydict
             .set_item("metadata", self.dict_from_metadata(&entry.metadata()))
@@ -64,13 +71,13 @@ impl Repo {
     fn __new__(obj: &PyRawObject, uri: &str, pwd: &str, create: bool) -> PyResult<()> {
         match zbox::RepoOpener::new().create(create).open(uri, pwd) {
             Ok(repo) => obj.init(|token| Repo { repo, token }),
-            Err(err) => exc::RuntimeError::new(err.description().to_string()).into(),
+            Err(err) => Error::from(err).into(),
         }
     }
 
     #[classmethod]
     fn exists(_cls: &PyType, uri: &str) -> PyResult<bool> {
-        zbox::Repo::exists(uri).map_err(|e| exc::RuntimeError::new(e.description().to_string()))
+        zbox::Repo::exists(uri).map_err(|e| Error::from(e).into())
     }
 
     fn path_exists(&self, path: &str) -> PyResult<bool> {
@@ -85,6 +92,21 @@ impl Repo {
         Ok(self.repo.is_dir(path))
     }
 
+    #[args(mode = "\"r\"")]
+    fn open(&mut self, path: &str, mode: &str) -> PyResult<Py<File>> {
+        match zbox::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&mut self.repo, path)
+        {
+            Ok(file) => self.token
+                .py()
+                .init(|token| File::new(token, file, mode.to_string())),
+            Err(err) => Error::from(err).into(),
+        }
+    }
+
     // fn create_file(&mut self, path: &str) -> PyResult<File> {
     // }
 
@@ -94,18 +116,18 @@ impl Repo {
     fn create_dir(&mut self, path: &str) -> PyResult<()> {
         self.repo
             .create_dir(path)
-            .map_err(|err| exc::RuntimeError::new(err.description().to_string()))
+            .map_err(|err| Error::from(err).into())
     }
 
     fn create_dir_all(&mut self, path: &str) -> PyResult<()> {
         self.repo
             .create_dir_all(path)
-            .map_err(|err| exc::RuntimeError::new(err.description().to_string()))
+            .map_err(|err| Error::from(err).into())
     }
 
     fn read_dir(&self, path: &str) -> PyResult<Vec<&PyDict>> {
         match self.repo.read_dir(path) {
-            Err(err) => Err(exc::RuntimeError::new(err.description().to_string())),
+            Err(err) => Error::from(err).into(),
             Ok(entries) => Ok(entries
                 .iter()
                 .map(|ref e| self.dict_from_direntry(e))
@@ -115,7 +137,7 @@ impl Repo {
 
     fn metadata(&self, path: &str) -> PyResult<&PyDict> {
         match self.repo.metadata(path) {
-            Err(err) => Err(exc::RuntimeError::new(err.description().to_string())),
+            Err(err) => Error::from(err).into(),
             Ok(ref metadata) => Ok(self.dict_from_metadata(metadata)),
         }
     }
@@ -125,30 +147,30 @@ impl Repo {
     fn copy(&mut self, from: &str, to: &str) -> PyResult<()> {
         self.repo
             .copy(from, to)
-            .map_err(|e| exc::RuntimeError::new(e.description().to_string()))
+            .map_err(|err| Error::from(err).into())
     }
 
     fn remove_file(&mut self, path: &str) -> PyResult<()> {
         self.repo
             .remove_file(path)
-            .map_err(|e| exc::RuntimeError::new(e.description().to_string()))
+            .map_err(|err| Error::from(err).into())
     }
 
     fn remove_dir(&mut self, path: &str) -> PyResult<()> {
         self.repo
             .remove_dir(path)
-            .map_err(|e| exc::RuntimeError::new(e.description().to_string()))
+            .map_err(|err| Error::from(err).into())
     }
 
     fn remove_dir_all(&mut self, path: &str) -> PyResult<()> {
         self.repo
             .remove_dir_all(path)
-            .map_err(|e| exc::RuntimeError::new(e.description().to_string()))
+            .map_err(|err| Error::from(err).into())
     }
 
     fn rename(&mut self, from: &str, to: &str) -> PyResult<()> {
         self.repo
             .rename(from, to)
-            .map_err(|e| exc::RuntimeError::new(e.description().to_string()))
+            .map_err(|err| Error::from(err).into())
     }
 }
