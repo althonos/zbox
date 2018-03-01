@@ -4,14 +4,16 @@ cache:
   directories:
   - "$CARGO_HOME"
   - "$HOME/.pip/cache"
-  - "$HOME/libsodium"
+  - "$HOME/.local/lib"
   - "build/temp.linux-x86_64-3.6/bindings.rust.zbox/release/deps/"
 
 env:
   global:
   - CARGO_HOME="$HOME/.cargo"
   - PATH="$PATH:$CARGO_HOME/bin"
-  - PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$HOME/libsodium/lib/pkgconfig"
+  - PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$HOME/.local/lib/pkgconfig"
+  - SODIUM_STATIC=true
+  - SODIUM_LIB_DIR="$HOME/.local/lib"
 
 python:
 - '2.7'
@@ -21,7 +23,7 @@ python:
 
 before_install:
 - curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
-- curl https://raw.githubusercontent.com/google/hat-backup/master/travis-install-libsodium.sh | sh -s
+- ci/install-libsodium.sh
 - pip install -U setuptools setuptools-rust docutils Pygments
 
 install:
