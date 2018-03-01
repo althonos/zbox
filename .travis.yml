@@ -9,7 +9,6 @@ env:
   global:
   - CARGO_HOME="$HOME/.cargo"
   - PATH="$PATH:$CARGO_HOME/bin"
-  - RUSTC_WRAPPER=sccache
   - SODIUM_STATIC=true
   - SODIUM_LIB_DIR="$CARGO_HOME/lib"
 
