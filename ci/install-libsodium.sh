@@ -5,22 +5,12 @@
 
 set -e
 
-# check requested libsodium version
-# if [ -z ${LIBSODIUM_VERSION+x} ]; then
-#	VERSION=1.0.16;
-# else
-#	VERSION=$LIBSODIUM_VERSION;
-# fi
-
-URL=
-
-
 # check if libsodium is already installed
-if [ ! -f "$HOME/.local/lib/libsodium.a" ]; then
+if [ ! -f "$CARGO_HOME/lib/libsodium.a" ]; then
   curl -SsL "https://download.libsodium.org/libsodium/releases/LATEST.tar.gz" | tar xvz
   cd libsodium-*
-  ./configure --prefix=$HOME/.local/ --disable-pie
-  make clean all install
+  ./configure --prefix=$CARGO_HOME/ --disable-pie
+  make all install
 else
-  echo 'Using cached directory.'
+  echo 'Using cached library.'
 fi
