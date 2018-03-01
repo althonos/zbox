@@ -4,6 +4,7 @@ cache:
   directories:
   - "$CARGO_HOME"
   - "$HOME/.pip/cache"
+  - "$HOME/libsodium"
 
 env:
   global:
@@ -18,6 +19,7 @@ python:
 
 before_install:
 - curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
+- curl https://raw.githubusercontent.com/google/hat-backup/master/travis-install-libsodium.sh | sh -s
 - pip install -U setuptools setuptools-rust docutils Pygments
 
 install:
