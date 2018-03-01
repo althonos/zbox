@@ -2,6 +2,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 
 use pyo3::prelude::*;
 use pyo3::buffer::PyBuffer;
+use pyo3::class::context::*;
 use pyo3::exc;
 
 use error::Error;
@@ -33,6 +34,24 @@ impl File {
             file: Some(file),
             mode: mode.into().unwrap_or(String::from("r")),
         }
+    }
+
+    fn _readline(file: &mut ::zbox::File, buf: &mut Vec<u8>) -> PyResult<Vec<u8>> {
+        let mut line = Vec::with_capacity(buf.len());
+        let mut read: usize = 1;
+
+        while line.last() != Some(&b'\n') && read != 0 {
+            read = file.read(buf).map_err(PyErr::from)?;
+            if let Some(pos) = buf[..read].quickfind(b'\n') {
+                line.extend_from_slice(&buf[..pos + 1]);
+                file.seek(SeekFrom::Current(-(read as i64) + (pos as i64) + 1))
+                    .map_err(PyErr::from)?;
+            } else {
+                line.extend_from_slice(&buf[..read]);
+            }
+        }
+
+        Ok(line)
     }
 }
 
@@ -102,46 +121,45 @@ impl File {
         }
     }
 
-    // FIXME!
     fn readline(&mut self) -> PyResult<Py<PyBytes>> {
-        let py = self.token.py();
         let file = check_open!(self.file);
 
+        let py = self.token.py();
         let size: usize = py.import("io")?
             .get("DEFAULT_BUFFER_SIZE")?
             .to_object(py)
             .extract(py)?;
+        let mut buf = vec![0; size];
 
-        let mut buf: Vec<u8> = vec![0; size];
-        let mut line = Vec::with_capacity(size);
-        let mut read: usize = 1;
-
-        while line.last() != Some(&b'\n') && read != 0 {
-            read = file.read(&mut buf).map_err(PyErr::from)?;
-            if let Some(pos) = buf[..read].quickfind(b'\n') {
-                line.extend_from_slice(&buf[..pos + 1]);
-                file.seek(SeekFrom::Current(-(read as i64) + (pos as i64) + 1))
-                    .map_err(PyErr::from)?;
-            } else {
-                line.extend_from_slice(&buf[..read]);
-            }
-        }
-
-        return Ok(PyBytes::new(py, &line));
+        let line = Self::_readline(file, &mut buf)?;
+        Ok(PyBytes::new(self.token.py(), &line))
     }
 
-    // #[args(hint = "-1")]
-    // fn readlines(&mut self, hint: isize) -> PyResult<PyObject> {
-    //     let py = self.token.py();
-    //     let io = py.import("io")?;
-    //     let RawIOBase = io.get("RawIOBase")?.to_object(py);
-    //
-    //     RawIOBase.call_method1(
-    //         py,
-    //         "readline",
-    //         (self.to_object(py), hint)
-    //     )
-    // }
+    #[args(hint = "-1")]
+    fn readlines(&mut self, hint: isize) -> PyResult<Vec<Py<PyBytes>>> {
+        let file = check_open!(self.file);
+
+        let py = self.token.py();
+        let size: usize = py.import("io")?
+            .get("DEFAULT_BUFFER_SIZE")?
+            .to_object(py)
+            .extract(py)?;
+        let mut buf = vec![0; size];
+
+        let mut total = 0;
+        let mut lines = Vec::new();
+        let mut line: Vec<u8> = Vec::new();
+
+        while {
+            line = Self::_readline(file, &mut buf)?;
+            !line.is_empty() && total < hint as usize
+        } {
+            total += line.len();
+            lines.push(PyBytes::new(py, &line));
+        }
+
+        Ok(lines)
+    }
 
     fn truncate(&mut self, size: Option<usize>) -> PyResult<usize> {
         let file = check_open!(self.file);
@@ -219,5 +237,17 @@ impl File {
     fn tell(&mut self) -> PyResult<u64> {
         let file = check_open!(self.file);
         file.seek(SeekFrom::Current(0)).map_err(PyErr::from)
+    }
+}
+
+
+#[py::proto]
+impl PyIterProtocol for File {
+
+    fn __iter__(&mut self) -> PyResult<PyObject> {
+        Ok(self.into())
+    }
+    fn __next__(&mut self) -> PyResult<Option<Py<PyBytes>>> {
+        Ok(None)
     }
 }

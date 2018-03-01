@@ -5,11 +5,13 @@ cache:
   - "$CARGO_HOME"
   - "$HOME/.pip/cache"
   - "$HOME/libsodium"
+  - "build/temp.linux-x86_64-3.6/bindings.rust.zbox/release/deps/"
 
 env:
   global:
   - CARGO_HOME="$HOME/.cargo"
   - PATH="$PATH:$CARGO_HOME/bin"
+  - PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$HOME/libsodium/lib/pkgconfig"
 
 python:
 - '2.7'
