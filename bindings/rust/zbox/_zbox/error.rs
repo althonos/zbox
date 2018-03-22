@@ -1,6 +1,16 @@
 use pyo3::prelude::*;
 use pyo3::exc;
 
+
+#[cfg(Py_3)] use pyo3::exc::FileNotFoundError;
+#[cfg(Py_3)] use pyo3::exc::FileExistsError;
+#[cfg(Py_3)] use pyo3::exc::NotADirectoryError;
+
+#[cfg(not(Py_3))] use pyo3::exc::{OSError as FileNotFoundError};
+#[cfg(not(Py_3))] use pyo3::exc::{OSError as FileExistsError};
+#[cfg(not(Py_3))] use pyo3::exc::{OSError as NotADirectoryError};
+
+
 #[derive(Debug)]
 pub struct Error(::zbox::Error);
 
@@ -27,7 +37,9 @@ impl ::std::convert::From<::zbox::Error> for Error {
 }
 
 impl ::std::convert::Into<PyErr> for Error {
+
     fn into(self) -> PyErr {
+
         use std::error::Error;
         use zbox::Error::*;
 
@@ -56,12 +68,12 @@ impl ::std::convert::Into<PyErr> for Error {
             // NoContent,
             // InvalidArgument,
             err @ InvalidPath => exc::ValueError::new(err.description().to_string()),
-            err @ NotFound => exc::FileNotFoundError::new(err.description().to_string()),
-            err @ AlreadyExists => exc::FileExistsError::new(err.description().to_string()),
+            err @ NotFound => FileNotFoundError::new(err.description().to_string()),
+            err @ AlreadyExists => FileExistsError::new(err.description().to_string()),
             // IsRoot,
             // IsDir,
             // IsFile,
-            err @ NotDir => exc::NotADirectoryError::new(err.description().to_string()),
+            err @ NotDir => NotADirectoryError::new(err.description().to_string()),
             // NotFile,
             // NotEmpty,
             // NoVersion,
