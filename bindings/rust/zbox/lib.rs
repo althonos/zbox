@@ -9,6 +9,7 @@ mod error;
 mod file;
 mod repo;
 mod utils;
+mod fs;
 
 use pyo3::prelude::*;
 
@@ -28,6 +29,7 @@ fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_class::<repo::Repo>()?;
     m.add_class::<file::File>()?;
+    m.add_class::<fs::ZboxFS>()?;
 
     Ok(())
 }
