@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::io::{Read, Seek, SeekFrom, Write};
 
 use pyo3::prelude::*;
@@ -5,8 +6,7 @@ use pyo3::buffer::PyBuffer;
 use pyo3::class::context::*;
 use pyo3::exc;
 
-use error::Error;
-use utils::QuickFind;
+use ::utils::QuickFind;
 
 macro_rules! check_open {
     ($file: expr) => {
@@ -172,13 +172,13 @@ impl File {
             Some(s) => s,
             None => match file.metadata() {
                 Ok(meta) => meta.len(),
-                Err(err) => return Error::from(err).into(),
+                Err(err) => return Err(exc::IOError::new(err.description().to_string())),
             }
         };
 
         match file.set_len(newsize) {
             Ok(_) => Ok(newsize),
-            Err(err) => Error::from(err).into(),
+            Err(err) => Err(exc::IOError::new(err.description().to_string())),
         }
     }
 
@@ -249,7 +249,6 @@ impl File {
         file.seek(SeekFrom::Current(0)).map_err(PyErr::from)
     }
 }
-
 
 #[py::proto]
 impl PyIterProtocol for File {

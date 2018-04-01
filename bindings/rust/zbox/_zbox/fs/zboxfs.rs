@@ -1,11 +1,10 @@
+use std::collections::HashSet;
+use std::path::Path;
+
 use pyo3::prelude::*;
 
 use ::file::File;
-use ::error::Error;
-
-use ::std::collections::HashSet;
-use ::std::path::Path;
-
+use ::fs::errors::Error;
 
 #[py::class(subclass)]
 pub struct ZboxFS {
@@ -41,15 +40,22 @@ impl ZboxFS {
         let ns = namespaces.unwrap_or(vec!["basic"]);
         let info = PyDict::new(self.token.py());
 
-        if ns.contains(&"basic") {
-            let basic = PyDict::new(self.token.py());
-            let name = path.rsplit_terminator("/").next().unwrap_or("");
+        let meta = match self.repo.metadata(path) {
+            Err(err) => return Error::from(err).into(),
+            Ok(meta) => meta,
+        };
 
-            basic.set_item("name", name);
-            basic.set_item("is_dir", self.repo.is_dir(path));
-            info.set_item("basic", basic);
+        // Basic namespace - always present
+        let basic = PyDict::new(self.token.py());
+        basic.set_item("name", path.rsplit_terminator("/").next().unwrap_or(""));
+        basic.set_item("is_dir", self.repo.is_dir(path));
+        info.set_item("basic", basic);
+
+        // Details namespace
+        if ns.contains(&"details") {
+            let details = PyDict::new(self.token.py());
+            details.set_item("size", meta.len());
         }
-
 
         Ok(info)
     }
@@ -102,5 +108,4 @@ impl ZboxFS {
     fn setinfo(&self, path: &str, info: &PyDict) -> PyResult<()> {
         self.getinfo(path, None).map(|_| ())
     }
-
 }

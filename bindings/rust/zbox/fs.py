@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import fs.base
+import fs.errors
 from fs.info import Info
 from fs.mode import Mode
 
@@ -19,7 +20,7 @@ class ZboxFS(ZboxFS, fs.base.FS):
         return super(ZboxFS, self).exists(_path)
 
     def getinfo(self, path, namespaces=["basic"]):
-        _path = self.validatepath(path)
+        _path = self.validatepath(path)        
         rawinfo = super(ZboxFS, self).getinfo(_path)
         return Info(rawinfo)
 

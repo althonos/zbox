@@ -5,13 +5,15 @@
 extern crate pyo3;
 extern crate zbox;
 
-mod error;
-mod file;
-mod repo;
-mod utils;
-mod fs;
 
-use pyo3::prelude::*;
+mod repo;
+mod file;
+mod fs;
+mod utils;
+
+
+use ::pyo3::prelude::*;
+
 
 #[py::modinit(_zbox)]
 fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {

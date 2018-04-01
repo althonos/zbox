@@ -4,24 +4,24 @@ use std::time::UNIX_EPOCH;
 use pyo3::prelude::*;
 use pyo3::exc;
 
-use zbox;
+use ::file::File;
+use ::repo::errors::Error;
 
-use file::File;
-use error::Error;
 
 #[py::class(subclass)]
 pub struct Repo {
-    repo: zbox::Repo,
+    repo: ::zbox::Repo,
     token: PyToken,
 }
 
+
 impl Repo {
-    pub fn new(token: PyToken, repo: zbox::Repo) -> Self {
+    pub fn new(token: PyToken, repo: ::zbox::Repo) -> Self {
         Self { token, repo }
     }
 
     // FIXME: no unwrap if possible !
-    pub fn dict_from_metadata(&self, metadata: &zbox::Metadata) -> &PyDict {
+    pub fn dict_from_metadata(&self, metadata: &::zbox::Metadata) -> &PyDict {
         let metadict = PyDict::new(self.token.py());
         metadict.set_item("is_dir", metadata.is_dir()).unwrap_or(());
         metadict
@@ -44,7 +44,7 @@ impl Repo {
     }
 
     // FIXME: no unwrap if possible !
-    pub fn dict_from_direntry(&self, entry: &zbox::DirEntry) -> &PyDict {
+    pub fn dict_from_direntry(&self, entry: &::zbox::DirEntry) -> &PyDict {
         let entrydict = PyDict::new(self.token.py());
         entrydict
             .set_item("metadata", self.dict_from_metadata(&entry.metadata()))
@@ -62,6 +62,7 @@ impl Repo {
     }
 }
 
+
 #[py::methods]
 impl Repo {
     // FIXME: allow any object instead of only &str as Path
@@ -69,7 +70,7 @@ impl Repo {
     #[new]
     #[args(create = "true")]
     fn __new__(obj: &PyRawObject, uri: &str, pwd: &str, create: bool) -> PyResult<()> {
-        match zbox::RepoOpener::new().create(create).open(uri, pwd) {
+        match ::zbox::RepoOpener::new().create(create).open(uri, pwd) {
             Ok(repo) => obj.init(|token| Repo { repo, token }),
             Err(err) => Error::from(err).into(),
         }
@@ -77,7 +78,7 @@ impl Repo {
 
     #[classmethod]
     fn exists(_cls: &PyType, uri: &str) -> PyResult<bool> {
-        zbox::Repo::exists(uri).map_err(|e| Error::from(e).into())
+        ::zbox::Repo::exists(uri).map_err(|e| Error::from(e).into())
     }
 
     fn path_exists(&self, path: &str) -> PyResult<bool> {
@@ -94,7 +95,7 @@ impl Repo {
 
     #[args(mode = "\"r\"")]
     fn open(&mut self, path: &str, mode: &str) -> PyResult<Py<File>> {
-        match zbox::OpenOptions::new()
+        match ::zbox::OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
