@@ -3,6 +3,8 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import fs.base
+from fs.info import Info
+from fs.mode import Mode
 
 from ._zbox import ZboxFS
 
@@ -15,6 +17,11 @@ class ZboxFS(ZboxFS, fs.base.FS):
     def exists(self, path):
         _path = self.validatepath(path)
         return super(ZboxFS, self).exists(_path)
+
+    def getinfo(self, path, namespaces=["basic"]):
+        _path = self.validatepath(path)
+        rawinfo = super(ZboxFS, self).getinfo(_path)
+        return Info(rawinfo)
 
     def isdir(self, path):
         _path = self.validatepath(path)
@@ -30,7 +37,8 @@ class ZboxFS(ZboxFS, fs.base.FS):
 
     def openbin(self, path, mode="r", buffering=-1, **options):
         _path = self.validatepath(path)
-        return super(ZboxFS, self).openbin(_path)
+        _mode = Mode(mode).to_platform_bin()
+        return super(ZboxFS, self).openbin(_path, _mode, buffering)
 
     def remove(self, path):
         _path = self.validatepath(path)
