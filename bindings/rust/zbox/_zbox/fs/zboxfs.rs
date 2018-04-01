@@ -4,6 +4,7 @@ use std::path::Path;
 use pyo3::prelude::*;
 
 use ::file::File;
+use ::fs::enums::ResourceType;
 use ::fs::errors::Error;
 
 #[py::class(subclass)]
@@ -37,24 +38,29 @@ impl ZboxFS {
     }
 
     fn getinfo(&self, path: &str, namespaces: Option<Vec<&str>>) -> PyResult<&PyDict> {
-        let ns = namespaces.unwrap_or(vec!["basic"]);
-        let info = PyDict::new(self.token.py());
 
         let meta = match self.repo.metadata(path) {
             Err(err) => return Error::from(err).into(),
             Ok(meta) => meta,
         };
 
+        let ns = namespaces.unwrap_or(vec!["basic"]);
+        let info = PyDict::new(self.token.py());
+        let is_dir = self.repo.is_dir(path);
+
         // Basic namespace - always present
         let basic = PyDict::new(self.token.py());
         basic.set_item("name", path.rsplit_terminator("/").next().unwrap_or(""));
-        basic.set_item("is_dir", self.repo.is_dir(path));
+        basic.set_item("is_dir", is_dir);
         info.set_item("basic", basic);
 
         // Details namespace
         if ns.contains(&"details") {
             let details = PyDict::new(self.token.py());
+            let resource_type = if is_dir {ResourceType::Directory} else {ResourceType::File};
             details.set_item("size", meta.len());
+            details.set_item("type", resource_type as i32);
+            info.set_item("details", details);
         }
 
         Ok(info)

@@ -260,3 +260,21 @@ impl PyIterProtocol for File {
         Ok(None)
     }
 }
+
+#[py::proto]
+impl<'p> PyContextProtocol<'p> for File {
+
+    fn __enter__(&mut self) -> PyResult<PyObject> {
+        Ok(self.to_object(self.token.py()))
+    }
+
+    fn __exit__(
+        &mut self,
+        ty: Option<&'p PyType>,
+        value: Option<&'p PyObjectRef>,
+        traceback: Option<&'p PyObjectRef>
+    ) -> PyResult<bool> {
+        self.close();
+        Ok(false)
+    }
+}
