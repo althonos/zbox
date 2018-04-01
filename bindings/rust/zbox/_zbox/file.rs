@@ -89,12 +89,15 @@ impl File {
         let file = check_open!(self.file);
         let mut data: Vec<u8>;
 
-        if size < 0 {
-            data = Vec::with_capacity(file.metadata().len());
-            file.read_to_end(&mut data);
-        } else {
+        if size >= 0 {
             data = Vec::with_capacity(size as usize);
             file.read_exact(&mut data);
+        } else if let Ok(meta) = file.metadata() {
+            data = Vec::with_capacity(meta.len());
+            file.read_to_end(&mut data);
+        } else {
+            data = Vec::new();
+            file.read_to_end(&mut data);
         }
 
         Ok(PyBytes::new(self.token.py(), &data))
@@ -164,7 +167,14 @@ impl File {
     fn truncate(&mut self, size: Option<usize>) -> PyResult<usize> {
         let file = check_open!(self.file);
         file.finish();
-        let newsize = size.unwrap_or_else(|| file.metadata().len());
+
+        let newsize = match size {
+            Some(s) => s,
+            None => match file.metadata() {
+                Ok(meta) => meta.len(),
+                Err(err) => return Error::from(err).into(),
+            }
+        };
 
         match file.set_len(newsize) {
             Ok(_) => Ok(newsize),
