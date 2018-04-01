@@ -4,6 +4,7 @@ use ::file::File;
 use ::error::Error;
 
 use ::std::collections::HashSet;
+use ::std::path::Path;
 
 
 #[py::class(subclass)]
@@ -25,7 +26,7 @@ impl ZboxFS {
     }
 
     fn exists(&self, path: &str) -> PyResult<bool> {
-        Ok(self.repo.is_dir(path))
+        Ok(self.repo.path_exists(path))
     }
 
     fn isdir(&self, path: &str) -> PyResult<bool> {
@@ -39,6 +40,17 @@ impl ZboxFS {
     fn getinfo(&self, path: &str, namespaces: Option<Vec<&str>>) -> PyResult<&PyDict> {
         let ns = namespaces.unwrap_or(vec!["basic"]);
         let info = PyDict::new(self.token.py());
+
+        if ns.contains(&"basic") {
+            let basic = PyDict::new(self.token.py());
+            let name = path.rsplit_terminator("/").next().unwrap_or("");
+
+            basic.set_item("name", name);
+            basic.set_item("is_dir", self.repo.is_dir(path));
+            info.set_item("basic", basic);
+        }
+
+
         Ok(info)
     }
 
@@ -55,7 +67,7 @@ impl ZboxFS {
             .map_err(|err| Error::from(err).into())
     }
 
-    #[args(mode = "\"r\"", buffering = "-1", options = "**")]
+    #[args(mode = "\"rb\"", buffering = "-1", options = "**")]
     fn openbin(
         &mut self,
         path: &str,
