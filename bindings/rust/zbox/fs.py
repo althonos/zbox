@@ -20,8 +20,8 @@ class ZboxFS(ZboxFS, fs.base.FS):
         return super(ZboxFS, self).exists(_path)
 
     def getinfo(self, path, namespaces=["basic"]):
-        _path = self.validatepath(path)        
-        rawinfo = super(ZboxFS, self).getinfo(_path)
+        _path = self.validatepath(path)
+        rawinfo = super(ZboxFS, self).getinfo(_path, namespaces)
         return Info(rawinfo)
 
     def isdir(self, path):
