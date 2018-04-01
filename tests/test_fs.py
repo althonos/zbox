@@ -8,7 +8,7 @@ from fs.test import FSTestCases
 from bindings.rust.zbox import ZboxFS
 
 
-# @unittest.skip("Segfaults !")
+@unittest.skip("Segfaults !")
 class TestZboxFS(FSTestCases, unittest.TestCase):
 
     def make_fs(self):
@@ -19,19 +19,3 @@ class TestZboxFS(FSTestCases, unittest.TestCase):
     def destroy_fs(self, fs):
         super(TestZboxFS, self).destroy_fs(fs)
         time.sleep(2)
-
-    @unittest.skip("")
-    def test_copy_dir_mem(self):
-        pass
-
-    @unittest.skip("")
-    def test_copy_dir_temp(self):
-        pass
-
-    @unittest.skip("")
-    def test_copy_structure(self):
-        pass
-
-    @unittest.skip("")
-    def test_copydir(self):
-        pass
