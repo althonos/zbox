@@ -32,9 +32,14 @@ class ZboxFS(ZboxFS, fs.base.FS):
         _path = self.validatepath(path)
         return super(ZboxFS, self).isfile(_path)
 
-    def makedir(self, path):
+    def listdir(self, path):
         _path = self.validatepath(path)
-        return super(ZboxFS, self).makedir(_path)
+        return super(ZboxFS, self).listdir(_path)
+
+    def makedir(self, path, permissions=None, recreate=False):
+        _path = self.validatepath(path)
+        super(ZboxFS, self).makedir(_path, recreate=recreate)
+        return self.opendir(_path)
 
     def openbin(self, path, mode="r", buffering=-1, **options):
         _path = self.validatepath(path)

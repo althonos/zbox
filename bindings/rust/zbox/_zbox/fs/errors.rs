@@ -1,16 +1,33 @@
 use pyo3::prelude::*;
 use pyo3::exc;
 
-#[derive(Debug)]
-pub struct Error(::zbox::Error);
 
-impl ::std::fmt::Display for Error {
+pub mod fsexc {
+    import_exception!(fs.errors, DirectoryExists);
+    import_exception!(fs.errors, DirectoryExpected);
+    import_exception!(fs.errors, DirectoryNotEmpty);
+    import_exception!(fs.errors, FileExpected);
+    import_exception!(fs.errors, ResourceNotFound);
+    import_exception!(fs.errors, RemoveRootError);
+}
+
+
+#[derive(Debug)]
+pub struct FSError(::zbox::Error, Option<String>);
+
+impl FSError {
+    pub fn with_path<S: Into<String>>(err: ::zbox::Error, path: S) -> Self {
+        FSError(err, Some(path.into()))
+    }
+}
+
+impl ::std::fmt::Display for FSError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         self.0.fmt(f)
     }
 }
 
-impl ::std::error::Error for Error {
+impl ::std::error::Error for FSError {
     fn description(&self) -> &str {
         self.0.description()
     }
@@ -20,18 +37,36 @@ impl ::std::error::Error for Error {
     }
 }
 
-impl ::std::convert::From<::zbox::Error> for Error {
+impl ::std::convert::From<::zbox::Error> for FSError {
     fn from(err: ::zbox::Error) -> Self {
-        Error(err)
+        FSError(err, None)
     }
 }
 
-impl ::std::convert::Into<PyErr> for Error {
+impl<T> ::std::convert::Into<PyResult<T>> for FSError {
+    fn into(self) -> PyResult<T> {
+        let pyerr: PyErr = self.into();
+        Err(pyerr)
+    }
+}
+
+
+
+
+
+
+impl ::std::convert::Into<PyErr> for FSError {
 
     fn into(self) -> PyErr {
 
         use std::error::Error;
         use zbox::Error::*;
+
+        let _path = if let Some(path) = self.1 {
+            path
+        } else {
+            self.0.description().to_string()
+        };
 
         match self.0 {
 
@@ -58,14 +93,19 @@ impl ::std::convert::Into<PyErr> for Error {
             // NoContent,
             // InvalidArgument,
             err @ InvalidPath => exc::ValueError::new(err.description().to_string()),
-            // err @ NotFound => FileNotFoundError::new(err.description().to_string()),
+
+            NotFound => fsexc::ResourceNotFound::new(_path),
             // err @ AlreadyExists => FileExistsError::new(err.description().to_string()),
-            // IsRoot,
+
+            // `IsRoot` should be used only when trying to remove root
+            // or creating a file or directory as root
+            IsRoot => fsexc::RemoveRootError::new(_path),
+
             // IsDir,
             // IsFile,
-            // err @ NotDir => NotADirectoryError::new(err.description().to_string()),
-            // NotFile,
-            // NotEmpty,
+            NotDir => fsexc::DirectoryExpected::new(_path),
+            NotFile => fsexc::FileExpected::new(_path),
+            NotEmpty => fsexc::DirectoryNotEmpty::new(_path),
             // NoVersion,
             // ReadOnly,
             // CannotRead,
@@ -79,12 +119,5 @@ impl ::std::convert::Into<PyErr> for Error {
 
             err => exc::RuntimeError::new(err.description().to_string()),
         }
-    }
-}
-
-impl<T> ::std::convert::Into<PyResult<T>> for Error {
-    fn into(self) -> PyResult<T> {
-        let pyerr: PyErr = self.into();
-        Err(pyerr)
     }
 }

@@ -5,7 +5,8 @@ use pyo3::prelude::*;
 
 use ::file::File;
 use ::fs::enums::ResourceType;
-use ::fs::errors::Error;
+use ::fs::errors::FSError;
+use ::fs::errors::fsexc;
 
 #[py::class(subclass)]
 pub struct ZboxFS {
@@ -21,7 +22,7 @@ impl ZboxFS {
     fn __new__(obj: &PyRawObject, uri: &str, pwd: &str, create: bool) -> PyResult<()> {
         match ::zbox::RepoOpener::new().create(create).open(uri, pwd) {
             Ok(repo) => obj.init(|token| ZboxFS { repo, token }),
-            Err(err) => Error::from(err).into(),
+            Err(err) => FSError::from(err).into(),
         }
     }
 
@@ -40,7 +41,7 @@ impl ZboxFS {
     fn getinfo(&self, path: &str, namespaces: Option<Vec<&str>>) -> PyResult<&PyDict> {
 
         let meta = match self.repo.metadata(path) {
-            Err(err) => return Error::from(err).into(),
+            Err(err) => return FSError::with_path(err, path).into(),
             Ok(meta) => meta,
         };
 
@@ -68,15 +69,31 @@ impl ZboxFS {
 
     fn listdir(&self, path: &str) -> PyResult<Vec<String>> {
         match self.repo.read_dir(path) {
-            Err(err) => Error::from(err).into(),
+            Err(err) => FSError::with_path(err, path).into(),
             Ok(entries) => Ok(entries.iter().map(|ref e| e.file_name().into()).collect()),
         }
     }
 
-    fn makedir(&mut self, path: &str) -> PyResult<()> {
-        self.repo
-            .create_dir(path)
-            .map_err(|err| Error::from(err).into())
+    #[args(recreate = "false")]
+    fn makedir(
+        &mut self,
+        path: &str,
+        permissions: Option<PyObject>,
+        recreate: bool,
+    ) -> PyResult<()> {
+
+
+        if self.repo.is_dir(path) {
+            if recreate {
+                Ok(())
+            } else {
+                Err(fsexc::DirectoryExists::new(path.to_string()))
+            }
+        } else {
+            self.repo
+                .create_dir(path)
+                .map_err(|err| FSError::with_path(err, path).into())
+        }
     }
 
     #[args(mode = "\"rb\"", buffering = "-1", options = "**")]
@@ -95,20 +112,20 @@ impl ZboxFS {
             .create_new(mode.contains(|c| c == 'x'))
             .open(&mut self.repo, path) {
                 Ok(file) => self.token.py().init(|token| File::new(token, file, mode.to_string())),
-                Err(err) => Error::from(err).into(),
+                Err(err) => FSError::with_path(err, path).into(),
             }
     }
 
     fn remove(&mut self, path: &str) -> PyResult<()> {
         self.repo
             .remove_file(path)
-            .map_err(|err| Error::from(err).into())
+            .map_err(|err| FSError::with_path(err, path).into())
     }
 
     fn removedir(&mut self, path: &str) -> PyResult<()> {
         self.repo
             .remove_dir(path)
-            .map_err(|err| Error::from(err).into())
+            .map_err(|err| FSError::with_path(err, path).into())
     }
 
     fn setinfo(&self, path: &str, info: &PyDict) -> PyResult<()> {
