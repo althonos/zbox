@@ -12,6 +12,18 @@ from ._zbox import ZboxFS
 
 class ZboxFS(ZboxFS, fs.base.FS):
 
+    _meta = {
+        'case_insensitive': False,
+        'network': False,
+        'read_only': False,
+        'invalid_path_chars': '\0',
+        'virtual': False,
+        'unicode_paths': True,
+        'thread_safe': True,
+        'virtual': False,
+        'supports_rename': True,
+    }
+
     def __init__(self, uri, pwd="", create=False):
         super(ZboxFS, self).__init__()
 
