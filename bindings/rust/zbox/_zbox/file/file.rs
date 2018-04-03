@@ -256,8 +256,14 @@ impl PyIterProtocol for File {
     fn __iter__(&mut self) -> PyResult<PyObject> {
         Ok(self.into())
     }
+
     fn __next__(&mut self) -> PyResult<Option<Py<PyBytes>>> {
-        Ok(None)
+        let bytes = self.readline()?;
+        if bytes.as_ref(self.token.py()).data().is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(bytes))
+        }
     }
 }
 

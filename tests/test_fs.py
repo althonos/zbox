@@ -27,7 +27,8 @@ class TestZboxFS(FSTestCases, unittest.TestCase):
         return self.zbfs
 
     def destroy_fs(self, zbfs):
-        zbfs.removetree("/")
+        if not zbfs.isclosed():
+            zbfs.removetree("/")
 
     @unittest.skip("avoid closing the filesystem")
     def test_close(self):
