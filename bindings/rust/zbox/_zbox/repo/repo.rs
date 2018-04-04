@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::exc;
 
 use ::file::File;
+use ::file::Mode;
 use ::repo::errors::Error;
 
 
@@ -95,10 +96,14 @@ impl Repo {
 
     #[args(mode = "\"r\"")]
     fn open(&mut self, path: &str, mode: &str) -> PyResult<Py<File>> {
+        let _mode = Mode::from(mode);
         match ::zbox::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
+            .read(_mode.reading)
+            .write(_mode.writing)
+            .append(_mode.appending)
+            .create(_mode.create)
+            .create_new(_mode.exclusive)
+            .truncate(_mode.truncate)
             .open(&mut self.repo, path)
         {
             Ok(file) => self.token

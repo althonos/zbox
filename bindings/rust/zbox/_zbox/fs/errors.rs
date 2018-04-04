@@ -7,7 +7,9 @@ pub mod fsexc {
     import_exception!(fs.errors, DirectoryExpected);
     import_exception!(fs.errors, DirectoryNotEmpty);
     import_exception!(fs.errors, FileExpected);
+    import_exception!(fs.errors, FileExists);
     import_exception!(fs.errors, ResourceNotFound);
+    import_exception!(fs.errors, ResourceReadOnly);
     import_exception!(fs.errors, RemoveRootError);
 }
 
@@ -51,12 +53,7 @@ impl<T> ::std::convert::Into<PyResult<T>> for FSError {
 }
 
 
-
-
-
-
 impl ::std::convert::Into<PyErr> for FSError {
-
     fn into(self) -> PyErr {
 
         use std::error::Error;
@@ -92,22 +89,22 @@ impl ::std::convert::Into<PyErr> for FSError {
             // InUse,
             // NoContent,
             // InvalidArgument,
-            err @ InvalidPath => exc::ValueError::new(err.description().to_string()),
+            err @ InvalidPath => exc::ValueError::new(_path),
 
             NotFound => fsexc::ResourceNotFound::new(_path),
-            // err @ AlreadyExists => FileExistsError::new(err.description().to_string()),
+            err @ AlreadyExists => fsexc::FileExists::new(_path),
 
             // `IsRoot` should be used only when trying to remove root
             // or creating a file or directory as root
             IsRoot => fsexc::RemoveRootError::new(_path),
 
-            // IsDir,
-            // IsFile,
+            IsDir => fsexc::FileExpected::new(_path),
+            IsFile => fsexc::DirectoryExpected::new(_path),
             NotDir => fsexc::DirectoryExpected::new(_path),
             NotFile => fsexc::FileExpected::new(_path),
             NotEmpty => fsexc::DirectoryNotEmpty::new(_path),
             // NoVersion,
-            // ReadOnly,
+            ReadOnly => fsexc::ResourceReadOnly::new(_path),
             // CannotRead,
             // CannotWrite,
             // NotWrite,

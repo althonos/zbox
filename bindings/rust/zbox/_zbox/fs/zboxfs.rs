@@ -4,6 +4,7 @@ use std::path::Path;
 use pyo3::prelude::*;
 
 use ::file::File;
+use ::file::Mode;
 use ::fs::enums::ResourceType;
 use ::fs::errors::FSError;
 use ::fs::errors::fsexc;
@@ -81,18 +82,12 @@ impl ZboxFS {
         permissions: Option<PyObject>,
         recreate: bool,
     ) -> PyResult<()> {
-
-
-        if self.repo.is_dir(path) {
-            if recreate {
-                Ok(())
-            } else {
-                Err(fsexc::DirectoryExists::new(path.to_string()))
-            }
-        } else {
-            self.repo
-                .create_dir(path)
-                .map_err(|err| FSError::with_path(err, path).into())
+        use ::zbox::Error::AlreadyExists;
+        match self.repo.create_dir(path) {
+            Ok(()) => Ok(()),
+            Err(AlreadyExists) if recreate => Ok(()),
+            Err(AlreadyExists) if !recreate => fsexc::DirectoryExists::new(path.to_owned()).into(),
+            Err(err) => FSError::with_path(err, path).into(),
         }
     }
 
@@ -104,15 +99,20 @@ impl ZboxFS {
         buffering: isize,
         options: Option<&PyDict>,
     ) -> PyResult<Py<File>> {
+        use ::zbox::Error::NotDir;
+
+        let _mode = Mode::from(mode);
         match ::zbox::OpenOptions::new()
-            .read(mode.contains(|c| c == '+' || c == 'r'))
-            .write(mode.contains(|c| c == '+' || c == 'a' || c == 'w' || c == 'x'))
-            .append(mode.contains(|c| c == 'a'))
-            .create(mode.contains(|c| c == 'a' || c == 'w' || c == 'x'))
-            .create_new(mode.contains(|c| c == 'x'))
+            .read(_mode.reading)
+            .write(_mode.writing)
+            .append(_mode.appending)
+            .create(_mode.create)
+            .create_new(_mode.exclusive)
+            .truncate(_mode.truncate)
             .open(&mut self.repo, path) {
-                Ok(file) => self.token.py().init(|token| File::new(token, file, mode.to_string())),
-                Err(err) => FSError::with_path(err, path).into(),
+                Ok(f) => { self.token.py().init(|token| File::new(token, f, mode.to_string())) }
+                Err(NotDir) => { fsexc::ResourceNotFound::new(path.to_owned()).into() }
+                Err(err) => { FSError::with_path(err, path).into() }
             }
     }
 
