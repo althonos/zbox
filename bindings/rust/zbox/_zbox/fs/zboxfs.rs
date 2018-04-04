@@ -27,6 +27,15 @@ impl ZboxFS {
         }
     }
 
+    #[args(overwrite = "false")]
+    fn copy(&mut self, src: &str, dst: &str, overwrite: bool) -> PyResult<()> {
+        if !overwrite && self.repo.is_file(dst) {
+            fsexc::DestinationExists::new(dst.to_owned()).into()
+        } else {
+            self.repo.copy(src, dst).map_err(|err| FSError::with_path(err, src).into())
+        }
+    }
+
     fn exists(&self, path: &str) -> PyResult<bool> {
         Ok(self.repo.path_exists(path))
     }

@@ -64,10 +64,8 @@ class TestFile(unittest.TestCase):
                 [b'abc\n', b'def\n', b'ghi\n', b'jkl']
             )
 
-        f = self.repo.open(self.path, 'r')
-        self.assertEqual(f.readlines(3), [b'abc\n'])
-        f.close()
+        with self.repo.open(self.path, 'r') as f:
+            self.assertEqual(f.readlines(3), [b'abc\n'])
 
-        f = self.repo.open(self.path, 'r')
-        self.assertEqual(f.readlines(5), [b'abc\n', b'def\n'])
-        f.close()
+        with self.repo.open(self.path, 'r') as f:
+            self.assertEqual(f.readlines(5), [b'abc\n', b'def\n'])

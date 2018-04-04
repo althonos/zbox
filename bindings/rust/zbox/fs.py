@@ -4,8 +4,8 @@ from __future__ import unicode_literals
 
 import fs.base
 import fs.errors
+import fs.mode
 from fs.info import Info
-from fs.mode import Mode
 
 from ._zbox import ZboxFS
 
@@ -26,6 +26,11 @@ class ZboxFS(ZboxFS, fs.base.FS):
 
     def __init__(self, uri, pwd="", create=False):
         super(ZboxFS, self).__init__()
+
+    def copy(self, src, dst, overwrite=False):
+        _src = self.validatepath(src)
+        _dst = self.validatepath(dst)
+        return super(ZboxFS, self).copy(src, dst, overwrite)
 
     def exists(self, path):
         _path = self.validatepath(path)
@@ -55,8 +60,8 @@ class ZboxFS(ZboxFS, fs.base.FS):
 
     def openbin(self, path, mode="r", buffering=-1, **options):
         _path = self.validatepath(path)
-        _mode = Mode(mode).to_platform_bin()
-        return super(ZboxFS, self).openbin(_path, _mode, buffering)
+        fs.mode.validate_openbin_mode(mode)
+        return super(ZboxFS, self).openbin(_path, mode, buffering)
 
     def remove(self, path):
         _path = self.validatepath(path)
