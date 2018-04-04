@@ -29,44 +29,40 @@ class TestFile(unittest.TestCase):
         msg = b'abc\ndef\nghi\njkl'
         s = io.BytesIO(msg)
 
-        f = self.repo.open(self.path, 'w')
-        f.write(msg)
-        f.close()
+        with self.repo.open(self.path, 'w') as f:
+            f.write(msg)
 
-        for (actual, expected) in zip(f, s):
-            self.assertEqual(actual, expected)
+        with self.repo.open(self.path) as f:
+            for (actual, expected) in zip(f, s):
+                self.assertEqual(actual, expected)
 
     def test_readline(self):
         msg = b'abc\ndef\nghi\njkl'
         s = io.BytesIO(msg)
 
-        f = self.repo.open(self.path, 'w')
-        f.write(msg)
-        f.close()
+        with self.repo.open(self.path, 'w') as f:
+            f.write(msg)
 
-        f = self.repo.open(self.path, 'r')
-
-        for line in s:
-            self.assertEqual(f.readline(), line)
-        self.assertEqual(f.readline(), b'')
-
-        f.close()
+        with self.repo.open(self.path, 'r') as f:
+            for line in s:
+                self.assertEqual(f.readline(), line)
+            self.assertEqual(f.readline(), b'')
 
     def test_readlines(self):
 
         msg = b'abc\ndef\nghi\njkl'
 
-        f = self.repo.open(self.path, 'w')
-        f.write(msg)
-        f.close()
+        with self.repo.open(self.path, 'w') as f:
+            f.write(msg)
 
-        f = self.repo.open(self.path, 'r')
-        self.assertEqual(f.read(), msg)
-        f.close()
+        with self.repo.open(self.path, 'r') as f:
+            self.assertEqual(f.read(), msg)
 
-        f = self.repo.open(self.path, 'r')
-        self.assertEqual(f.readlines(), [b'abc\n', b'def\n', b'ghi\n', b'jkl'])
-        f.close()
+        with self.repo.open(self.path, 'r') as f:
+            self.assertEqual(
+                f.readlines(),
+                [b'abc\n', b'def\n', b'ghi\n', b'jkl']
+            )
 
         f = self.repo.open(self.path, 'r')
         self.assertEqual(f.readlines(3), [b'abc\n'])
