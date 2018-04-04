@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import os
 import time
 import unittest
 import uuid
@@ -11,7 +12,7 @@ from bindings.rust.zbox import ZboxFS
 
 
 # @unittest.skip("Segfaults !")
-class TestZboxFS(FSTestCases, unittest.TestCase):
+class TestMemZboxFS(FSTestCases, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -22,14 +23,18 @@ class TestZboxFS(FSTestCases, unittest.TestCase):
         cls.zbfs.close()
 
     def make_fs(self):
-        if self.zbfs.isclosed():
-            self.zbfs = ZboxFS("mem://")
-        return self.zbfs
+        return self.zbfs.makedir(uuid.uuid4().hex)
 
-    def destroy_fs(self, zbfs):
-        if not zbfs.isclosed():
-            zbfs.removetree("/")
 
-    @unittest.skip("avoid closing the filesystem")
-    def test_close(self):
-        pass
+class TestFileZboxFS(TestMemZboxFS):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = fs.open_fs("temp://")
+        os.rmdir(cls.tmp.getsyspath('/'))
+        cls.zbfs = ZboxFS(cls.tmp.geturl('/'))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.zbfs.close()
+        cls.tmp.close()
