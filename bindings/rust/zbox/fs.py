@@ -58,6 +58,11 @@ class ZboxFS(ZboxFS, fs.base.FS):
         super(ZboxFS, self).makedir(_path, recreate=recreate)
         return self.opendir(_path)
 
+    def move(self, src, dst, overwrite=False):
+        _src = self.validatepath(src)
+        _dst = self.validatepath(dst)
+        return super(ZboxFS, self).move_(src, dst, overwrite)
+
     def openbin(self, path, mode="r", buffering=-1, **options):
         _path = self.validatepath(path)
         fs.mode.validate_openbin_mode(mode)

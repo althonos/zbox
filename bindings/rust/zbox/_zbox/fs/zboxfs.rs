@@ -100,6 +100,15 @@ impl ZboxFS {
         }
     }
 
+    #[args(overwrite = "false")]
+    fn move_(&mut self, src: &str, dst: &str, overwrite: bool) -> PyResult<()> {
+        if !overwrite && self.repo.is_file(dst) {
+            fsexc::DestinationExists::new(dst.to_owned()).into()
+        } else {
+            self.repo.rename(src, dst).map_err(|err| FSError::with_path(err, src).into())
+        }
+    }
+
     #[args(mode = "\"rb\"", buffering = "-1", options = "**")]
     fn openbin(
         &mut self,
