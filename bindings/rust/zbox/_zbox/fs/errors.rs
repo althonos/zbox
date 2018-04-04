@@ -3,6 +3,7 @@ use pyo3::exc;
 
 
 pub mod fsexc {
+    import_exception!(fs.errors, DestinationExists);
     import_exception!(fs.errors, DirectoryExists);
     import_exception!(fs.errors, DirectoryExpected);
     import_exception!(fs.errors, DirectoryNotEmpty);

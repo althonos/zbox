@@ -102,6 +102,10 @@ impl ZboxFS {
         use ::zbox::Error::NotDir;
 
         let _mode = Mode::from(mode);
+        if !_mode.create && !self.repo.path_exists(path) {
+            return fsexc::ResourceNotFound::new(path.to_owned()).into()
+        }
+
         match ::zbox::OpenOptions::new()
             .read(_mode.reading)
             .write(_mode.writing)
@@ -110,7 +114,7 @@ impl ZboxFS {
             .create_new(_mode.exclusive)
             .truncate(_mode.truncate)
             .open(&mut self.repo, path) {
-                Ok(f) => { self.token.py().init(|token| File::new(token, f, mode.to_string())) }
+                Ok(f) => { self.token.py().init(|token| File::new(token, f, _mode)) }
                 Err(NotDir) => { fsexc::ResourceNotFound::new(path.to_owned()).into() }
                 Err(err) => { FSError::with_path(err, path).into() }
             }

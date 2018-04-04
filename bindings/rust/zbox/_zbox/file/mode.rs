@@ -8,7 +8,8 @@ pub struct Mode {
     pub reading: bool,
     pub truncate: bool,
     pub updating: bool,
-    pub writing: bool
+    pub writing: bool,
+    pub mode: String,
 }
 
 
@@ -37,7 +38,8 @@ impl<S: AsRef<str>> ::std::convert::From<S> for Mode {
 
         Mode {
             appending, create, exclusive, reading,
-            truncate, updating, writing
+            truncate, updating, writing,
+            mode: mode.as_ref().to_owned()
         }
     }
 }

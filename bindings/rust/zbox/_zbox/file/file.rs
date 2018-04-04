@@ -7,6 +7,9 @@ use pyo3::class::context::*;
 use pyo3::exc;
 
 use ::utils::QuickFind;
+use ::file::errors::ioexc;
+use ::file::mode::Mode;
+
 
 macro_rules! check_open {
     ($file: expr) => {
@@ -17,22 +20,21 @@ macro_rules! check_open {
     };
 }
 
+
 #[py::class(subclass)]
 pub struct File {
     file: Option<::zbox::File>,
-    mode: String,
+    mode: Mode,
     token: PyToken,
 }
 
 impl File {
-    pub fn new<S>(token: PyToken, file: ::zbox::File, mode: S) -> Self
-    where
-        S: Into<Option<String>>,
-    {
+
+    pub fn new(token: PyToken, file: ::zbox::File, mode: Mode) -> Self {
         Self {
             token,
             file: Some(file),
-            mode: mode.into().unwrap_or(String::from("r")),
+            mode: mode,
         }
     }
 
@@ -59,7 +61,7 @@ impl File {
 impl File {
     #[getter]
     fn mode(&self) -> PyResult<&str> {
-        Ok(&self.mode)
+        Ok(&self.mode.mode)
     }
 
     #[getter]
@@ -74,6 +76,10 @@ impl File {
 
         self.file = None;
         Ok(())
+    }
+
+    fn fileno(&self) -> PyResult<()> {
+        ioexc::UnsupportedOperation::new("fileno").into()
     }
 
     fn flush(&mut self) -> PyResult<()> {
@@ -104,7 +110,7 @@ impl File {
     }
 
     fn readable(&self) -> PyResult<bool> {
-        Ok(self.mode.contains(|c| c == 'r' || c == '+'))
+        Ok(self.mode.reading)
     }
 
     fn readinto(&mut self, dest: &PyObjectRef) -> PyResult<usize> {
@@ -191,11 +197,16 @@ impl File {
             // The unsafe code is actually safe since we checked beforehand the buffer
             // contains read-only well-aligned bytes
             unsafe { raw_data = ::std::slice::from_raw_parts(s.as_ptr() as *const u8, s.len()) }
-            file.write(raw_data).map_err(PyErr::from)
+
+            if let Err(e) = file.write(raw_data) {
+                PyErr::from(e).into()
+            } else {
+                file.finish();
+                Ok(s.len())
+            }
+
         } else {
-            Err(exc::TypeError::new(
-                "object supporting the buffer API required",
-            ))
+            exc::TypeError::new("object supporting the buffer API required").into()
         }
     }
 
@@ -207,8 +218,8 @@ impl File {
     }
 
     fn writable(&self) -> PyResult<bool> {
-        Ok(self.mode
-            .contains(|c| c == 'w' || c == 'a' || c == '+' || c == 'x'))
+        Ok(self.mode.writing)
+            // .contains(|c| c == 'w' || c == 'a' || c == '+' || c == 'x'))
     }
 
     fn seek(&mut self, offset: i64, whence: Option<usize>) -> PyResult<u64> {
@@ -241,7 +252,7 @@ impl File {
     }
 
     fn seekable(&self) -> PyResult<bool> {
-        Ok(false)
+        Ok(true)
     }
 
     fn tell(&mut self) -> PyResult<u64> {

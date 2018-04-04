@@ -108,7 +108,7 @@ impl Repo {
         {
             Ok(file) => self.token
                 .py()
-                .init(|token| File::new(token, file, mode.to_string())),
+                .init(|token| File::new(token, file, _mode)),
             Err(err) => Error::from(err).into(),
         }
     }
