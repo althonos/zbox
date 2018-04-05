@@ -41,6 +41,16 @@ class ZboxFS(ZboxFS, fs.base.FS):
         rawinfo = super(ZboxFS, self).getinfo(_path, namespaces)
         return Info(rawinfo)
 
+    # def getfile(self, path, file, chunk_size=None, **options):
+    #     # type: (Text, BinaryIO, Optional[int], **Any) -> None
+    #     with self._lock:
+    #         with self.openbin(path, **options) as read_file:
+    #             tools.copy_file_data(
+    #                 read_file,
+    #                 file,
+    #                 chunk_size=chunk_size
+    #             )
+
     def isdir(self, path):
         _path = self.validatepath(path)
         return super(ZboxFS, self).isdir(_path)

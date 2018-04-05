@@ -97,12 +97,9 @@ impl File {
 
         if size >= 0 {
             data = Vec::with_capacity(size as usize);
-            file.read_exact(&mut data);
-        } else if let Ok(meta) = file.metadata() {
-            data = Vec::with_capacity(meta.len());
-            file.read_to_end(&mut data);
+            file.take(size as u64).read_to_end(&mut data);
         } else {
-            data = Vec::new();
+            data = Vec::with_capacity(file.metadata().map(|m| m.len()).unwrap_or(0));
             file.read_to_end(&mut data);
         }
 
@@ -124,9 +121,7 @@ impl File {
             unsafe { raw_data = ::std::slice::from_raw_parts_mut(b.as_ptr() as *mut u8, b.len()) }
             file.read(raw_data).map_err(PyErr::from)
         } else {
-            Err(exc::TypeError::new(
-                "object supporting the buffer API required",
-            ))
+            exc::TypeError::new("object supporting the buffer API required").into()
         }
     }
 
@@ -219,7 +214,6 @@ impl File {
 
     fn writable(&self) -> PyResult<bool> {
         Ok(self.mode.writing)
-            // .contains(|c| c == 'w' || c == 'a' || c == '+' || c == 'x'))
     }
 
     fn seek(&mut self, offset: i64, whence: Option<usize>) -> PyResult<u64> {
