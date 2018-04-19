@@ -7,9 +7,6 @@ extern crate pyo3;
 extern crate lazy_static;
 extern crate zbox;
 
-#[macro_use]
-mod macros;
-
 mod constants;
 mod file;
 mod fs;
