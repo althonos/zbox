@@ -11,6 +11,7 @@ path = "lib.rs"
 
 [dependencies]
 regex = "^0.2"
+lazy_static = "*"
 
 [dependencies.zbox]
 git = "https://github.com/zboxfs/zbox"
@@ -22,4 +23,3 @@ features = ["extension-module"]
 
 [target.'cfg(unix)'.dependencies]
 memchr = "^2.0.1"
-

@@ -3,12 +3,17 @@
 
 #[macro_use]
 extern crate pyo3;
+#[macro_use]
+extern crate lazy_static;
 extern crate zbox;
 
+#[macro_use]
+mod macros;
 
-mod repo;
+mod constants;
 mod file;
 mod fs;
+mod repo;
 mod utils;
 
 
