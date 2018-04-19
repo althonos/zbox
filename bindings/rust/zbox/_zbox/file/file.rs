@@ -186,18 +186,23 @@ impl File {
     fn write(&mut self, data: &PyObjectRef) -> PyResult<usize> {
         let buffer = PyBuffer::get(self.token.py(), data)?;
         let file = check_open!(self.file);
-        let raw_data: &[u8];
 
         if let Some(s) = buffer.as_slice::<u8>(self.token.py()) {
+
+            let pos = file.seek(SeekFrom::Current(0))?;
+            let raw_data: &[u8];
+
             // The unsafe code is actually safe since we checked beforehand the buffer
             // contains read-only well-aligned bytes
             unsafe { raw_data = ::std::slice::from_raw_parts(s.as_ptr() as *const u8, s.len()) }
 
-            if let Err(e) = file.write(raw_data) {
-                PyErr::from(e).into()
-            } else {
-                file.finish();
-                Ok(s.len())
+            match file.write(raw_data) {
+                Err(e) => PyErr::from(e).into(),
+                Ok(written) => {
+                    file.finish();
+                    file.seek(SeekFrom::Start(pos + written as u64));
+                    Ok(written)
+                }
             }
 
         } else {
@@ -216,29 +221,26 @@ impl File {
         Ok(self.mode.writing)
     }
 
-    fn seek(&mut self, offset: i64, whence: Option<usize>) -> PyResult<u64> {
+    #[args(whence = "*::constants::io::SEEK_SET")]
+    fn seek(&mut self, offset: i64, whence: usize) -> PyResult<u64> {
         let file = check_open!(self.file);
         let py = self.token.py();
 
         // Import constants from the io module
-        let io = py.import("io")?;
-        let seek_set: usize = io.get("SEEK_SET")?.to_object(py).extract(py)?;
-        let seek_cur: usize = io.get("SEEK_CUR")?.to_object(py).extract(py)?;
-        let seek_end: usize = io.get("SEEK_END")?.to_object(py).extract(py)?;
+        use ::constants::io::{SEEK_CUR, SEEK_SET, SEEK_END};
 
         // Turn the (offset, whence) pair into a SeekFrom instance
-        let seekfrom = match whence.unwrap_or(seek_set) {
-            seek_cur => SeekFrom::Current(offset),
-            seek_set => SeekFrom::Start(offset as u64),
-            seek_end => SeekFrom::End(offset),
-
-            // Unknown whence
-            unknown => {
-                return Err(exc::ValueError::new(format!(
-                    "invalid whence ({}, should be {}, {} or {})",
-                    unknown, seek_cur, seek_set, seek_end
-                )));
-            }
+        let seekfrom = if SEEK_CUR == whence {
+            SeekFrom::Current(offset)
+        } else if whence == SEEK_SET {
+            SeekFrom::Start(offset as u64)
+        } else if whence == SEEK_END {
+            SeekFrom::End(offset)
+        } else {
+            return Err(exc::ValueError::new(format!(
+                "invalid whence ({}, should be {}, {} or {})",
+                whence, SEEK_SET, SEEK_CUR, SEEK_END
+            )));
         };
 
         // Seek the file
