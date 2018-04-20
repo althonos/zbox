@@ -21,6 +21,29 @@ macro_rules! check_open {
 }
 
 
+macro_rules! check_readable {
+    ($file: expr, $mode: expr) => {
+        if !$mode.reading {
+            return Err(ioexc::UnsupportedOperation::new("not readable"));
+        } else {
+            check_open!($file)
+        }
+    }
+}
+
+
+macro_rules! check_writable {
+    ($file: expr, $mode: expr) => {
+        if !$mode.writing {
+            return Err(ioexc::UnsupportedOperation::new("not writable"));
+        } else {
+            check_open!($file)
+        }
+    }
+}
+
+
+
 #[py::class(subclass)]
 pub struct File {
     file: Option<::zbox::File>,
@@ -70,9 +93,9 @@ impl File {
     }
 
     fn close(&mut self) -> PyResult<()> {
-        if let Some(ref mut f) = self.file {
-            f.finish();
-        }
+        // if let Some(ref mut f) = self.file {
+        //     f.finish();
+        // }
 
         self.file = None;
         Ok(())
@@ -92,7 +115,7 @@ impl File {
 
     #[args(size = "-1")]
     fn read(&mut self, mut size: isize) -> PyResult<Py<PyBytes>> {
-        let file = check_open!(self.file);
+        let file = check_readable!(self.file, self.mode);
         let mut data: Vec<u8>;
 
         if size >= 0 {
@@ -112,7 +135,7 @@ impl File {
 
     fn readinto(&mut self, dest: &PyObjectRef) -> PyResult<usize> {
         let buffer = PyBuffer::get(self.token.py(), dest)?;
-        let file = check_open!(self.file);
+        let file = check_readable!(self.file, self.mode);
         let mut raw_data: &mut [u8];
 
         if let Some(b) = buffer.as_mut_slice::<u8>(self.token.py()) {
@@ -126,7 +149,7 @@ impl File {
     }
 
     fn readline(&mut self) -> PyResult<Py<PyBytes>> {
-        let file = check_open!(self.file);
+        let file = check_readable!(self.file, self.mode);
 
         let py = self.token.py();
         let size: usize = py.import("io")?
@@ -141,7 +164,7 @@ impl File {
 
     #[args(hint = "-1")]
     fn readlines(&mut self, hint: isize) -> PyResult<Vec<Py<PyBytes>>> {
-        let file = check_open!(self.file);
+        let file = check_readable!(self.file, self.mode);
 
         let py = self.token.py();
         let size: usize = py.import("io")?
@@ -165,19 +188,16 @@ impl File {
         Ok(lines)
     }
 
-    fn truncate(&mut self, size: Option<usize>) -> PyResult<usize> {
-        let file = check_open!(self.file);
+    fn truncate(&mut self, size: Option<u64>) -> PyResult<u64> {
+        let file = check_writable!(self.file, self.mode);
         file.finish();
 
         let newsize = match size {
             Some(s) => s,
-            None => match file.metadata() {
-                Ok(meta) => meta.len(),
-                Err(err) => return Err(exc::IOError::new(err.description().to_string())),
-            }
+            None => file.seek(SeekFrom::Current(0)).map_err(PyErr::from)?,
         };
 
-        match file.set_len(newsize) {
+        match file.set_len(newsize as usize) {
             Ok(_) => Ok(newsize),
             Err(err) => Err(exc::IOError::new(err.description().to_string())),
         }
@@ -185,7 +205,7 @@ impl File {
 
     fn write(&mut self, data: &PyObjectRef) -> PyResult<usize> {
         let buffer = PyBuffer::get(self.token.py(), data)?;
-        let file = check_open!(self.file);
+        let file = check_writable!(self.file, self.mode);
 
         if let Some(s) = buffer.as_slice::<u8>(self.token.py()) {
 
