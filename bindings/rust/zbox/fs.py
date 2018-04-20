@@ -71,7 +71,7 @@ class ZboxFS(ZboxFS, fs.base.FS):
     def move(self, src, dst, overwrite=False):
         _src = self.validatepath(src)
         _dst = self.validatepath(dst)
-        return super(ZboxFS, self).move_(src, dst, overwrite)
+        return super(ZboxFS, self).move_(_src, _dst, overwrite)
 
     def openbin(self, path, mode="r", buffering=-1, **options):
         _path = self.validatepath(path)

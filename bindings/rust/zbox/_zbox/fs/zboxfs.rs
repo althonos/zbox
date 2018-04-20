@@ -102,11 +102,20 @@ impl ZboxFS {
 
     #[args(overwrite = "false")]
     fn move_(&mut self, src: &str, dst: &str, overwrite: bool) -> PyResult<()> {
-        if !overwrite && self.repo.is_file(dst) {
-            fsexc::DestinationExists::new(dst.to_owned()).into()
-        } else {
-            self.repo.rename(src, dst).map_err(|err| FSError::with_path(err, src).into())
+
+        if self.repo.is_dir(src) {
+            return fsexc::FileExpected::new(src.to_owned()).into();
         }
+
+        // FIXME(@althonos): see zboxfs/zbox#26
+        if self.repo.is_file(dst) {
+            if !overwrite {
+                return fsexc::DestinationExists::new(dst.to_owned()).into();
+            }
+            self.repo.remove_file(dst);
+        }
+
+        self.repo.rename(src, dst).map_err(|err| FSError::with_path(err, src).into())
     }
 
     #[args(mode = "\"rb\"", buffering = "-1", options = "**")]
