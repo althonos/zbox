@@ -25,7 +25,7 @@ class TestMemZboxFS(FSTestCases, unittest.TestCase):
         cls.zbfs.close()
 
     def make_fs(self):
-        return self.zbfs.makedir(uuid.uuid4().hex)
+        return self.zbfs.makedir(six.text_type(uuid.uuid4().hex))
 
     # FIXME(@althonos): wait for zboxfs/zbox#27
     @unittest.expectedFailure
