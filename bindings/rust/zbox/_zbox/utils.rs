@@ -51,3 +51,16 @@ impl<'a> QuickFind for [u8] {
         memrchr(needle, self)
     }
 }
+
+pub trait Tell {
+    fn tell(&mut self) -> ::std::io::Result<u64>;
+}
+
+impl<S> Tell for S
+where
+    S: ::std::io::Seek,
+{
+    default fn tell(&mut self) -> ::std::io::Result<u64> {
+        self.seek(::std::io::SeekFrom::Current(0))
+    }
+}
