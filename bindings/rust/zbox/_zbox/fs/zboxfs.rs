@@ -48,6 +48,7 @@ impl ZboxFS {
         Ok(self.repo.is_file(path))
     }
 
+    // FIXME: wait for PyO3/pyo3#141 and replace `PyString` with `PyUnicode`
     fn getinfo(&self, path: &str, namespaces: Option<Vec<&str>>) -> PyResult<&PyDict> {
 
         let meta = match self.repo.metadata(path) {
@@ -61,7 +62,8 @@ impl ZboxFS {
 
         // Basic namespace - always present
         let basic = PyDict::new(self.token.py());
-        basic.set_item("name", path.rsplit_terminator("/").next().unwrap_or(""));
+        let name = path.rsplit_terminator("/").next().unwrap_or("");
+        basic.set_item("name", PyString::new(self.token.py(), name));
         basic.set_item("is_dir", is_dir);
         info.set_item("basic", basic);
 
@@ -77,10 +79,15 @@ impl ZboxFS {
         Ok(info)
     }
 
-    fn listdir(&self, path: &str) -> PyResult<Vec<String>> {
+    // FIXME: wait for PyO3/pyo3#141 and replace `PyString` with `PyUnicode`
+    fn listdir(&self, path: &str) -> PyResult<Vec<Py<PyString>>> {
         match self.repo.read_dir(path) {
             Err(err) => FSError::with_path(err, path).into(),
-            Ok(entries) => Ok(entries.iter().map(|ref e| e.file_name().into()).collect()),
+            Ok(entries) => {
+                let names = entries.iter().map(|ref e| e.file_name());
+                let strings = names.map(|ref n| PyString::new(self.token.py(), n));
+                Ok(strings.collect())
+            }
         }
     }
 
