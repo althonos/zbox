@@ -6,9 +6,10 @@ use pyo3::buffer::PyBuffer;
 use pyo3::class::context::*;
 use pyo3::exc;
 
-use ::utils::QuickFind;
 use ::file::errors::ioexc;
 use ::file::mode::Mode;
+use ::utils::QuickFind;
+use ::utils::Tell;
 
 
 macro_rules! check_open {
@@ -43,13 +44,13 @@ macro_rules! check_writable {
 }
 
 
-
 #[py::class(subclass)]
 pub struct File {
     file: Option<::zbox::File>,
     mode: Mode,
     token: PyToken,
 }
+
 
 impl File {
 
@@ -58,25 +59,41 @@ impl File {
             token,
             file: Some(file),
             mode: mode,
+
         }
     }
 
     fn _readline(file: &mut ::zbox::File, buf: &mut Vec<u8>) -> PyResult<Vec<u8>> {
+
         let mut line = Vec::with_capacity(buf.len());
         let mut read: usize = 1;
+        let mut end: usize;
 
-        while line.last() != Some(&b'\n') && read != 0 {
-            read = file.read(buf).map_err(PyErr::from)?;
-            if let Some(pos) = buf[..read].quickfind(b'\n') {
-                line.extend_from_slice(&buf[..pos + 1]);
-                file.seek(SeekFrom::Current(-(read as i64) + (pos as i64) + 1))
-                    .map_err(PyErr::from)?;
-            } else {
-                line.extend_from_slice(&buf[..read]);
+        {
+            let mut reader = Self::get_reader(file)?;
+            while line.last() != Some(&b'\n') && read != 0 {
+                read = reader.read(buf)?;
+                end = buf[..read].quickfind(b'\n').unwrap_or(read - 1);
+                line.extend_from_slice(&buf[..end + 1]);
             }
         }
 
+        file.seek(SeekFrom::Current(line.len() as i64))
+            .map_err(PyErr::from)?;
+
         Ok(line)
+    }
+
+    fn get_reader(file: &mut ::zbox::File) -> PyResult<::zbox::VersionReader> {
+        let pos = file.tell().map_err(PyErr::from)?;
+        let version = file
+            .curr_version()
+            .map_err(|_| exc::RuntimeError::new("could not get current version"))?;
+        let mut reader = file
+            .version_reader(version)
+            .map_err(|_| exc::RuntimeError::new("could not get version reader"))?;
+        reader.seek(SeekFrom::Start(pos)).map_err(PyErr::from)?;
+        Ok(reader)
     }
 }
 
@@ -93,10 +110,6 @@ impl File {
     }
 
     fn close(&mut self) -> PyResult<()> {
-        // if let Some(ref mut f) = self.file {
-        //     f.finish();
-        // }
-
         self.file = None;
         Ok(())
     }
@@ -115,17 +128,19 @@ impl File {
 
     #[args(size = "-1")]
     fn read(&mut self, mut size: isize) -> PyResult<Py<PyBytes>> {
-        let file = check_readable!(self.file, self.mode);
-        let mut data: Vec<u8>;
 
-        if size >= 0 {
+        let mut data: Vec<u8>;
+        let mut file = check_readable!(self.file, self.mode);
+
+        let bytes_read = if size >= 0 {
             data = Vec::with_capacity(size as usize);
-            file.take(size as u64).read_to_end(&mut data);
+            Self::get_reader(file)?.take(size as u64).read_to_end(&mut data)?
         } else {
             data = Vec::with_capacity(file.metadata().map(|m| m.len()).unwrap_or(0));
-            file.read_to_end(&mut data);
-        }
+            Self::get_reader(file)?.read_to_end(&mut data)?
+        };
 
+        file.seek(SeekFrom::Current(bytes_read as i64))?;
         Ok(PyBytes::new(self.token.py(), &data))
     }
 
@@ -134,44 +149,51 @@ impl File {
     }
 
     fn readinto(&mut self, dest: &PyObjectRef) -> PyResult<usize> {
-        let buffer = PyBuffer::get(self.token.py(), dest)?;
-        let file = check_readable!(self.file, self.mode);
-        let mut raw_data: &mut [u8];
 
-        if let Some(b) = buffer.as_mut_slice::<u8>(self.token.py()) {
-            // The unsafe code is actually safe since we checked beforehand the buffer
-            // contains writable well-aligned bytes
-            unsafe { raw_data = ::std::slice::from_raw_parts_mut(b.as_ptr() as *mut u8, b.len()) }
-            file.read(raw_data).map_err(PyErr::from)
-        } else {
-            exc::TypeError::new("object supporting the buffer API required").into()
-        }
+        let mut raw_data: &mut [u8];
+        let mut file = check_readable!(self.file, self.mode);
+        let buffer = PyBuffer::get(self.token.py(), dest)?;
+
+        let ptr = buffer
+            .as_mut_slice::<u8>(self.token.py())
+            .ok_or(exc::TypeError::new("object supporting the buffer API required"))?;
+
+        // The unsafe code is safe since we checked the buffer contains writable well-aligned bytes
+        unsafe { raw_data = ::std::slice::from_raw_parts_mut(ptr.as_ptr() as *mut u8, ptr.len()) }
+
+        let bytes_read = Self::get_reader(file)?.read(raw_data)?;
+        file.seek(SeekFrom::Current(bytes_read as i64));
+
+        Ok(bytes_read)
     }
 
     fn readline(&mut self) -> PyResult<Py<PyBytes>> {
+
         let file = check_readable!(self.file, self.mode);
+        let mut buf = vec![0; *::constants::io::DEFAULT_BUFFER_SIZE];
+        let mut line = Vec::with_capacity(*::constants::io::DEFAULT_BUFFER_SIZE);
+        let mut end: usize;
+        let mut read: usize = 1;
 
-        let py = self.token.py();
-        let size: usize = py.import("io")?
-            .get("DEFAULT_BUFFER_SIZE")?
-            .to_object(py)
-            .extract(py)?;
-        let mut buf = vec![0; size];
+        {
+            let mut reader = Self::get_reader(file)?;
+            while line.last() != Some(&b'\n') && read != 0 {
+                read = reader.read(&mut buf)?;
+                end = buf[..read].quickfind(b'\n').unwrap_or(read - 1);
+                line.extend_from_slice(&buf[..end + 1]);
+            }
+        }
 
-        let line = Self::_readline(file, &mut buf)?;
+        file.seek(SeekFrom::Current(line.len() as i64))?;
         Ok(PyBytes::new(self.token.py(), &line))
     }
 
+    // TODO: proper implementation sharing the same reader
     #[args(hint = "-1")]
     fn readlines(&mut self, hint: isize) -> PyResult<Vec<Py<PyBytes>>> {
-        let file = check_readable!(self.file, self.mode);
 
-        let py = self.token.py();
-        let size: usize = py.import("io")?
-            .get("DEFAULT_BUFFER_SIZE")?
-            .to_object(py)
-            .extract(py)?;
-        let mut buf = vec![0; size];
+        let file = check_readable!(self.file, self.mode);
+        let mut buf = vec![0; *::constants::io::DEFAULT_BUFFER_SIZE];
 
         let mut total = 0;
         let mut lines = Vec::new();
@@ -182,7 +204,7 @@ impl File {
             !line.is_empty() && total < hint as usize
         } {
             total += line.len();
-            lines.push(PyBytes::new(py, &line));
+            lines.push(PyBytes::new(self.token.py(), &line));
         }
 
         Ok(lines)
@@ -190,11 +212,10 @@ impl File {
 
     fn truncate(&mut self, size: Option<u64>) -> PyResult<u64> {
         let file = check_writable!(self.file, self.mode);
-        file.finish();
 
         let newsize = match size {
             Some(s) => s,
-            None => file.seek(SeekFrom::Current(0)).map_err(PyErr::from)?,
+            None => file.tell().map_err(PyErr::from)?,
         };
 
         match file.set_len(newsize as usize) {
@@ -204,32 +225,32 @@ impl File {
     }
 
     fn write(&mut self, data: &PyObjectRef) -> PyResult<usize> {
+
         let buffer = PyBuffer::get(self.token.py(), data)?;
-        let file = check_writable!(self.file, self.mode);
+        let mut file = check_writable!(self.file, self.mode);
+        let pos = file.tell()?;
 
-        if let Some(s) = buffer.as_slice::<u8>(self.token.py()) {
+        let ptr = buffer
+            .as_slice::<u8>(self.token.py())
+            .ok_or(exc::TypeError::new("object supporting the buffer API required"))?;
 
-            let pos = file.seek(SeekFrom::Current(0))?;
-            let raw_data: &[u8];
+        // The unsafe code is actually safe since we checked beforehand the buffer
+        // contains read-only well-aligned bytes
+        let raw_data = unsafe {
+            ::std::slice::from_raw_parts(ptr.as_ptr() as *const u8, ptr.len())
+        };
 
-            // The unsafe code is actually safe since we checked beforehand the buffer
-            // contains read-only well-aligned bytes
-            unsafe { raw_data = ::std::slice::from_raw_parts(s.as_ptr() as *const u8, s.len()) }
+        let bytes_written = file
+            .write(raw_data)
+            .map_err(PyErr::from)?;
 
-            match file.write(raw_data) {
-                Err(e) => PyErr::from(e).into(),
-                Ok(written) => {
-                    file.finish();
-                    file.seek(SeekFrom::Start(pos + written as u64));
-                    Ok(written)
-                }
-            }
+        file.finish();
+        file.seek(SeekFrom::Start(pos + bytes_written as u64))?;
 
-        } else {
-            exc::TypeError::new("object supporting the buffer API required").into()
-        }
+        Ok(bytes_written)
     }
 
+    // TODO: proper implementation
     fn writelines(&mut self, lines: Vec<&PyBytes>) -> PyResult<()> {
         for line in lines {
             self.write(line.as_ref())?;
