@@ -1,4 +1,6 @@
 # coding: utf-8
+from __future__ import absolute_import
+from __future__ import unicode_literals
 
 import io
 import os
@@ -129,6 +131,18 @@ class TestMemZboxFS(FSTestCases, unittest.TestCase):
             self.assertEqual(4, f.seek(4))
             self.assertEqual(f.read(1), b'O')
         self.assertTrue(f.closed)
+
+
+    # FIXME(@althonos): wait for PyO3/pyo3#141
+    if six.PY2:
+
+        @unittest.expectedFailure
+        def test_getinfo(self):
+            super(TestMemZboxFS, self).test_getinfo()
+
+        @unittest.expectedFailure
+        def test_listdir(self):
+            super(TestMemZboxFS, self).test_listdir()
 
 
 class TestFileZboxFS(TestMemZboxFS):
