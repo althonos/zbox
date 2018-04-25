@@ -59,7 +59,6 @@ impl File {
             token,
             file: Some(file),
             mode: mode,
-
         }
     }
 
@@ -67,34 +66,23 @@ impl File {
 
         let mut line = Vec::with_capacity(buf.len());
         let mut read: usize = 1;
-        let mut end: usize;
+        let mut end: usize = 1;
+        let pos = file.tell()?;
 
         {
-            let mut reader = Self::get_reader(file)?;
             while line.last() != Some(&b'\n') && read != 0 {
-                read = reader.read(buf)?;
+                read = file.read(buf)?;
                 end = buf[..read].quickfind(b'\n').unwrap_or(read - 1);
                 line.extend_from_slice(&buf[..end + 1]);
             }
         }
 
-        file.seek(SeekFrom::Current(line.len() as i64))
+        file.seek(SeekFrom::Start((pos + line.len() as u64) as u64))
             .map_err(PyErr::from)?;
 
         Ok(line)
     }
 
-    fn get_reader(file: &mut ::zbox::File) -> PyResult<::zbox::VersionReader> {
-        let pos = file.tell().map_err(PyErr::from)?;
-        let version = file
-            .curr_version()
-            .map_err(|_| exc::RuntimeError::new("could not get current version"))?;
-        let mut reader = file
-            .version_reader(version)
-            .map_err(|_| exc::RuntimeError::new("could not get version reader"))?;
-        reader.seek(SeekFrom::Start(pos)).map_err(PyErr::from)?;
-        Ok(reader)
-    }
 }
 
 #[py::methods]
@@ -134,13 +122,12 @@ impl File {
 
         let bytes_read = if size >= 0 {
             data = Vec::with_capacity(size as usize);
-            Self::get_reader(file)?.take(size as u64).read_to_end(&mut data)?
+            file.take(size as u64).read_to_end(&mut data)?
         } else {
             data = Vec::with_capacity(file.metadata().map(|m| m.len()).unwrap_or(0));
-            Self::get_reader(file)?.read_to_end(&mut data)?
+            file.read_to_end(&mut data)?
         };
 
-        file.seek(SeekFrom::Current(bytes_read as i64))?;
         Ok(PyBytes::new(self.token.py(), &data))
     }
 
@@ -161,7 +148,7 @@ impl File {
         // The unsafe code is safe since we checked the buffer contains writable well-aligned bytes
         unsafe { raw_data = ::std::slice::from_raw_parts_mut(ptr.as_ptr() as *mut u8, ptr.len()) }
 
-        let bytes_read = Self::get_reader(file)?.read(raw_data)?;
+        let bytes_read = file.read(raw_data)?;
         file.seek(SeekFrom::Current(bytes_read as i64));
 
         Ok(bytes_read)
@@ -171,20 +158,20 @@ impl File {
 
         let file = check_readable!(self.file, self.mode);
         let mut buf = vec![0; *::constants::io::DEFAULT_BUFFER_SIZE];
-        let mut line = Vec::with_capacity(*::constants::io::DEFAULT_BUFFER_SIZE);
-        let mut end: usize;
-        let mut read: usize = 1;
+        let line = Self::_readline(file, &mut buf)?;
+        // let mut line = Vec::with_capacity(*::constants::io::DEFAULT_BUFFER_SIZE);
+        // let mut end: usize;
+        // let mut read: usize = 1;
+        //
+        // {
+        //     while line.last() != Some(&b'\n') && read != 0 {
+        //         read = file.read(&mut buf)?;
+        //         end = buf[..read].quickfind(b'\n').unwrap_or(read - 1);
+        //         line.extend_from_slice(&buf[..end + 1]);
+        //     }
+        // }
 
-        {
-            let mut reader = Self::get_reader(file)?;
-            while line.last() != Some(&b'\n') && read != 0 {
-                read = reader.read(&mut buf)?;
-                end = buf[..read].quickfind(b'\n').unwrap_or(read - 1);
-                line.extend_from_slice(&buf[..end + 1]);
-            }
-        }
-
-        file.seek(SeekFrom::Current(line.len() as i64))?;
+        // file.seek(SeekFrom::Current(line.len() as i64))?;
         Ok(PyBytes::new(self.token.py(), &line))
     }
 
