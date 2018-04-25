@@ -24,6 +24,19 @@ class TestFile(unittest.TestCase):
     def setUp(self):
         self.path = "/{}".format(uuid.uuid4().hex)
 
+    def test_readinto(self):
+        msg = b'abc\ndef\nghi'
+
+        with self.repo.open(self.path, 'w') as f:
+            f.write(msg)
+
+        buff = bytearray([0, 0, 0, 0])
+        with self.repo.open(self.path) as f:
+            f.readinto(buff)
+            self.assertEqual(bytes(buff), b'abc\n')
+            f.readinto(buff)
+            self.assertEqual(bytes(buff), b'def\n')
+
 
     def test_iter(self):
         msg = b'abc\ndef\nghi\njkl'

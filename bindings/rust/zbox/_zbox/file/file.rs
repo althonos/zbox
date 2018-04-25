@@ -149,29 +149,13 @@ impl File {
         unsafe { raw_data = ::std::slice::from_raw_parts_mut(ptr.as_ptr() as *mut u8, ptr.len()) }
 
         let bytes_read = file.read(raw_data)?;
-        file.seek(SeekFrom::Current(bytes_read as i64));
-
         Ok(bytes_read)
     }
 
     fn readline(&mut self) -> PyResult<Py<PyBytes>> {
-
         let file = check_readable!(self.file, self.mode);
         let mut buf = vec![0; *::constants::io::DEFAULT_BUFFER_SIZE];
         let line = Self::_readline(file, &mut buf)?;
-        // let mut line = Vec::with_capacity(*::constants::io::DEFAULT_BUFFER_SIZE);
-        // let mut end: usize;
-        // let mut read: usize = 1;
-        //
-        // {
-        //     while line.last() != Some(&b'\n') && read != 0 {
-        //         read = file.read(&mut buf)?;
-        //         end = buf[..read].quickfind(b'\n').unwrap_or(read - 1);
-        //         line.extend_from_slice(&buf[..end + 1]);
-        //     }
-        // }
-
-        // file.seek(SeekFrom::Current(line.len() as i64))?;
         Ok(PyBytes::new(self.token.py(), &line))
     }
 
