@@ -2,6 +2,7 @@ use std::error::Error as StdError;
 use std::time::UNIX_EPOCH;
 
 use pyo3::prelude::*;
+use pyo3::py::*;
 use pyo3::exc;
 
 use ::file::File;
@@ -9,7 +10,7 @@ use ::file::Mode;
 use ::repo::errors::Error;
 
 
-#[py::class(subclass)]
+#[class(subclass)]
 pub struct Repo {
     repo: ::zbox::Repo,
     token: PyToken,
@@ -64,7 +65,7 @@ impl Repo {
 }
 
 
-#[py::methods]
+#[methods]
 impl Repo {
     // FIXME: allow any object instead of only &str as Path
 

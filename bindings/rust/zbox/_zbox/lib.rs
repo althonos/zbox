@@ -13,11 +13,10 @@ mod fs;
 mod repo;
 mod utils;
 
-
 use ::pyo3::prelude::*;
+use ::pyo3::py::*;
 
-
-#[py::modinit(_zbox)]
+#[modinit(_zbox)]
 fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {
     // let authors_re = regex::Regex::new(r"(.*) <(.*)>").unwrap();
     // if let Some(captures) = authors_re.captures(env!("CARGO_PKG_AUTHORS")) {

@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use pyo3::prelude::*;
+use pyo3::py::*;
 
 use ::file::File;
 use ::file::Mode;
@@ -9,13 +10,13 @@ use ::fs::enums::ResourceType;
 use ::fs::errors::FSError;
 use ::fs::errors::fsexc;
 
-#[py::class(subclass)]
+#[class(subclass)]
 pub struct ZboxFS {
     repo: ::zbox::Repo,
     token: PyToken,
 }
 
-#[py::methods]
+#[methods]
 impl ZboxFS {
 
     #[new]

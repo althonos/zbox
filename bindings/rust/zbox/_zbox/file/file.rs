@@ -2,6 +2,7 @@ use std::error::Error;
 use std::io::{Read, Seek, SeekFrom, Write};
 
 use pyo3::prelude::*;
+use pyo3::py::*;
 use pyo3::buffer::PyBuffer;
 use pyo3::class::context::*;
 use pyo3::exc;
@@ -44,7 +45,7 @@ macro_rules! check_writable {
 }
 
 
-#[py::class(subclass)]
+#[class(subclass)]
 pub struct File {
     file: Option<::zbox::File>,
     mode: Mode,
@@ -85,7 +86,7 @@ impl File {
 
 }
 
-#[py::methods]
+#[methods]
 impl File {
     #[getter]
     fn mode(&self) -> PyResult<&str> {
@@ -269,7 +270,7 @@ impl File {
     }
 }
 
-#[py::proto]
+#[proto]
 impl PyIterProtocol for File {
 
     fn __iter__(&mut self) -> PyResult<PyObject> {
@@ -286,7 +287,7 @@ impl PyIterProtocol for File {
     }
 }
 
-#[py::proto]
+#[proto]
 impl<'p> PyContextProtocol<'p> for File {
 
     fn __enter__(&mut self) -> PyResult<PyObject> {
