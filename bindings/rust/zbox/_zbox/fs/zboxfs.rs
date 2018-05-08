@@ -64,7 +64,7 @@ impl ZboxFS {
         // Basic namespace - always present
         let basic = PyDict::new(self.token.py());
         let name = path.rsplit_terminator("/").next().unwrap_or("");
-        basic.set_item("name", PyString::new(self.token.py(), name));
+        basic.set_item("name", PyUnicode::new(self.token.py(), name));
         basic.set_item("is_dir", is_dir);
         info.set_item("basic", basic);
 
@@ -81,12 +81,12 @@ impl ZboxFS {
     }
 
     // FIXME: wait for PyO3/pyo3#141 and replace `PyString` with `PyUnicode`
-    fn listdir(&self, path: &str) -> PyResult<Vec<Py<PyString>>> {
+    fn listdir(&self, path: &str) -> PyResult<Vec<Py<PyUnicode>>> {
         match self.repo.read_dir(path) {
             Err(err) => FSError::with_path(err, path).into(),
             Ok(entries) => {
                 let names = entries.iter().map(|ref e| e.file_name());
-                let strings = names.map(|ref n| PyString::new(self.token.py(), n));
+                let strings = names.map(|ref n| PyUnicode::new(self.token.py(), n));
                 Ok(strings.collect())
             }
         }
