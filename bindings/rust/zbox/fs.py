@@ -30,7 +30,7 @@ class ZboxFS(ZboxFS, fs.base.FS):
     def copy(self, src, dst, overwrite=False):
         _src = self.validatepath(src)
         _dst = self.validatepath(dst)
-        return super(ZboxFS, self).copy(src, dst, overwrite)
+        return super(ZboxFS, self).copy(_src, _dst, overwrite)
 
     def exists(self, path):
         _path = self.validatepath(path)
