@@ -8,7 +8,7 @@ import tempfile
 import unittest
 import uuid
 
-from bindings.rust import zbox
+import zbox
 
 class _TestRepo(object):
 
