@@ -15,7 +15,7 @@ env:
   - SODIUM_LIB_DIR="$CARGO_HOME/lib"
 
 stages:
-  - test
+  # - test
   - wheels
 
 jobs:
@@ -25,27 +25,42 @@ jobs:
     - stage: test
       python: 2.7
       before_install:
-        - ci/setup.sh
+        - ci/travis/setup.sh
       install:
-        - pip install -U setuptools setuptools-rust docutils Pygments
+        - pip install -U setuptools setuptools-rust
       script:
         - python setup.py test
     - stage: test
       python: 3.5
       before_install:
-        - ci/setup.sh
+        - ci/travis/setup.sh
       install:
-        - pip install -U setuptools setuptools-rust docutils Pygments
+        - pip install -U setuptools setuptools-rust
       script:
         - python setup.py test
     - stage: test
       python: 3.6
       before_install:
-        - ci/setup.sh
+        - ci/travis/setup.sh
       install:
-        - pip install -U setuptools setuptools-rust docutils Pygments
+        - pip install -U setuptools setuptools-rust
       script:
         - python setup.py test
+
+    # Wheels
+    - stage: wheels
+      os: linux
+      sudo: required
+      services:
+        - docker
+      env:
+        - IMAGE=quay.io/pypa/manylinux1_x86_64
+      install:
+        - docker pull $IMAGE
+      script:
+        - docker run --rm -v `pwd`:/io $IMAGE /io/ci/travis/wheels-linux.sh
+        - ls
+
 
 # before_install:
 # - ci/setup.sh
