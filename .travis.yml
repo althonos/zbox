@@ -15,40 +15,32 @@ env:
     - SODIUM_LIB_DIR="$CARGO_HOME/lib"
 
 stages:
-  # - test
-  - wheels
+  - test
+  - deploy
+
+.test: &test
+  stage: test
+  before_install:
+    - ci/travis/setup.sh
+  install:
+    - pip install -U setuptools setuptools-rust
+  script:
+    - python setup.py test
+
 
 jobs:
   include:
 
     # Tests
-    - stage: test
-      python: 2.7
-      before_install:
-        - ci/travis/setup.sh
-      install:
-        - pip install -U setuptools setuptools-rust
-      script:
-        - python setup.py test
-    - stage: test
-      python: 3.5
-      before_install:
-        - ci/travis/setup.sh
-      install:
-        - pip install -U setuptools setuptools-rust
-      script:
-        - python setup.py test
-    - stage: test
-      python: 3.6
-      before_install:
-        - ci/travis/setup.sh
-      install:
-        - pip install -U setuptools setuptools-rust
-      script:
-        - python setup.py test
+    - python: 2.7
+      <<: *test
+    - python: 3.5
+      <<: *test
+    - python: 3.6
+      <<: *test
 
     # Wheels
-    - stage: wheels
+    - stage: deploy
       os: linux
       sudo: required
       services:
@@ -59,22 +51,7 @@ jobs:
         - docker pull $IMAGE
       script:
         - docker run --rm -v `pwd`:/io $IMAGE /io/ci/travis/wheels-linux.sh
-        - ls
-
-
-# before_install:
-# - ci/setup.sh
-# - pip install -U setuptools setuptools-rust docutils Pygments
-#
-# install:
-# - python setup.py build
-# - pip install .
-#
-# script:
-# - python setup.py test
-#
-# before_deploy:
-# - python setup.py check -rms sdist
+        - ls dist
 
 notifications:
   email:
