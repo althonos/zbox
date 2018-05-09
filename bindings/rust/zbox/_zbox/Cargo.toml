@@ -10,7 +10,7 @@ name = "_zbox"
 path = "lib.rs"
 
 [dependencies]
-lazy_static = "*"
+lazy_static = "^1.0"
 
 [dependencies.zbox]
 git = "https://github.com/zboxfs/zbox"
@@ -18,7 +18,6 @@ git = "https://github.com/zboxfs/zbox"
 [dependencies.pyo3]
 git = "https://github.com/PyO3/pyo3.git"
 version = "^0.2"
-features = ["extension-module"]
 
 [target.'cfg(unix)'.dependencies]
 memchr = "^2.0.1"

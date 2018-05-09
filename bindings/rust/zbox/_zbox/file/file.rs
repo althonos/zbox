@@ -70,12 +70,12 @@ impl File {
         let mut end: usize = 1;
         let pos = file.tell()?;
 
-        {
-            while line.last() != Some(&b'\n') && read != 0 {
-                read = file.read(buf)?;
-                end = buf[..read].quickfind(b'\n').unwrap_or(read - 1);
-                line.extend_from_slice(&buf[..end + 1]);
-            }
+        while {
+            read = file.read(buf)?;
+            line.last() != Some(&b'\n') && read != 0
+        } {
+            end = buf[..read].quickfind(b'\n').unwrap_or(read - 1);
+            line.extend_from_slice(&buf[..end + 1]);
         }
 
         file.seek(SeekFrom::Start((pos + line.len() as u64) as u64))
@@ -116,7 +116,7 @@ impl File {
     }
 
     #[args(size = "-1")]
-    fn read(&mut self, mut size: isize) -> PyResult<Py<PyBytes>> {
+    fn read(&mut self, mut size: i64) -> PyResult<Py<PyBytes>> {
 
         let mut data: Vec<u8>;
         let mut file = check_readable!(self.file, self.mode);
@@ -160,9 +160,8 @@ impl File {
         Ok(PyBytes::new(self.token.py(), &line))
     }
 
-    // TODO: proper implementation sharing the same reader
     #[args(hint = "-1")]
-    fn readlines(&mut self, hint: isize) -> PyResult<Vec<Py<PyBytes>>> {
+    fn readlines(&mut self, hint: i64) -> PyResult<Vec<Py<PyBytes>>> {
 
         let file = check_readable!(self.file, self.mode);
         let mut buf = vec![0; *::constants::io::DEFAULT_BUFFER_SIZE];
