@@ -2,17 +2,17 @@ sudo: false
 language: python
 cache:
   directories:
-  - "$CARGO_HOME"
-  - "$HOME/.pip/cache"
+    - "$CARGO_HOME"
+    - "$HOME/.pip/cache"
 
 env:
   global:
-  - RUSTC_WRAPPER="sccache"
-  - CARGO_HOME="$HOME/.cargo"
-  - SCCACHE_DIR="$CARGO_HOME/sccache"
-  - PATH="$PATH:$CARGO_HOME/bin"
-  - SODIUM_STATIC=true
-  - SODIUM_LIB_DIR="$CARGO_HOME/lib"
+    - RUSTC_WRAPPER="sccache"
+    - CARGO_HOME="$HOME/.cargo"
+    - SCCACHE_DIR="$CARGO_HOME/sccache"
+    - PATH="$PATH:$CARGO_HOME/bin"
+    - SODIUM_STATIC=true
+    - SODIUM_LIB_DIR="$CARGO_HOME/lib"
 
 stages:
   # - test

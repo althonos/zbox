@@ -10,7 +10,7 @@ import fs
 import six
 
 from fs.test import FSTestCases
-from zbox import ZboxFS
+from bindings.rust.zbox import ZboxFS
 
 
 class TestMemZboxFS(FSTestCases, unittest.TestCase):
