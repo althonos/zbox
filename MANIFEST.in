@@ -1,4 +1,4 @@
 include COPYING
 include rust-toolchain
-recursive-include zbox Cargo.toml
-recursive-include zbox *.rs
+recursive-include bindings Cargo.toml
+recursive-include bindings *.rs
