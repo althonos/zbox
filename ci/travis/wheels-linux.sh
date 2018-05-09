@@ -13,7 +13,7 @@ export SODIUM_LIB_DIR="$CARGO_HOME/lib"
 
 # Install libsodium
 mkdir -p $CARGO_HOME/cache/libsodium
-cur -SsL "https://download.libsodium.org/libsodium/releases/LATEST.tar.gz" | tar xzvC /tmp
+curl -SsL "https://download.libsodium.org/libsodium/releases/LATEST.tar.gz" | tar xzvC /tmp
 cd /tmp/libsodium-*
 ./autogen.sh
 ./configure --prefix=$CARGO_HOME/ --disable-pie
