@@ -14,25 +14,38 @@ env:
   - SODIUM_STATIC=true
   - SODIUM_LIB_DIR="$CARGO_HOME/lib"
 
-python:
-- '2.7'
-- '3.5'
-- '3.6'
-- nightly
+stages:
+  - test
+  - wheels
 
-before_install:
-- ci/setup.sh
-- pip install -U setuptools setuptools-rust docutils Pygments
+jobs:
+  include:
+    - stage: test
+      python: 2.7
+      before_install:
+        - ci/setup.sh
+      install:
+        - pip install -U setuptools setuptools-rust docutils Pygments
+      script:
+        - python setup.py test
+    - stage: test
+      python: 3.5
+    - stage: test
+      python: 3.6
 
-install:
-- python setup.py build
-- pip install .
-
-script:
-- python setup.py test
-
-before_deploy:
-- python setup.py check -rms sdist
+# before_install:
+# - ci/setup.sh
+# - pip install -U setuptools setuptools-rust docutils Pygments
+#
+# install:
+# - python setup.py build
+# - pip install .
+#
+# script:
+# - python setup.py test
+#
+# before_deploy:
+# - python setup.py check -rms sdist
 
 notifications:
   email:
