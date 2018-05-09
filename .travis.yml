@@ -20,6 +20,8 @@ stages:
 
 jobs:
   include:
+
+    # Tests
     - stage: test
       python: 2.7
       before_install:
@@ -30,8 +32,20 @@ jobs:
         - python setup.py test
     - stage: test
       python: 3.5
+      before_install:
+        - ci/setup.sh
+      install:
+        - pip install -U setuptools setuptools-rust docutils Pygments
+      script:
+        - python setup.py test
     - stage: test
       python: 3.6
+      before_install:
+        - ci/setup.sh
+      install:
+        - pip install -U setuptools setuptools-rust docutils Pygments
+      script:
+        - python setup.py test
 
 # before_install:
 # - ci/setup.sh
