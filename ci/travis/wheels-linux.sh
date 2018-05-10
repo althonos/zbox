@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e -x
 
+clean_project() {
+    # Remove compiled files that might cause conflicts
+    rm -rf /io/.cache /io/.eggs /io/build /io/*.egg-info
+    find /io/ -name "__pycache__" -type d -print0 | xargs -0 rm -rf
+    find /io/ -name "*.pyc" -type f -print0 | xargs -0 rm -rf
+    find /io/ -name "*.so" -type f -print0 | xargs -0 rm -rf
+}
+
 # Install rustup
 curl -SsL https://sh.rustup.rs | sh -s -- -y --no-modify-path --default-toolchain nightly
 
@@ -40,11 +48,11 @@ for PYBIN in /opt/python/cp{27,35,36}*/bin; do
 done
 
 # Bundle external shared libraries into the wheels
-for whl in /io/dist/*.whl; do
+for whl in /io/dist/*linux_x86_64.whl; do
     auditwheel repair "$whl" -w /io/dist/
 done
 
 # Install packages and test
 for PYBIN in /opt/python/cp{27,35,36}*/bin/; do
-    "${PYBIN}/pip" install hello-rust --no-index -f /io/dist/
+    "${PYBIN}/pip" install zbox --no-index -f /io/dist/
 done
