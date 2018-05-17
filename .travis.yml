@@ -4,28 +4,71 @@ cache:
   directories:
     - "$CARGO_HOME"
     - "$HOME/.pip/cache"
+    - "$PYENV_ROOT/cache"
 
 env:
   global:
     - RUSTC_WRAPPER="sccache"
     - CARGO_HOME="$HOME/.cargo"
+    - PYENV_ROOT="$HOME/.pyenv"
     - SCCACHE_DIR="$CARGO_HOME/sccache"
-    - PATH="$PATH:$CARGO_HOME/bin"
+    - PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH:$CARGO_HOME/bin"
     - SODIUM_STATIC=true
     - SODIUM_LIB_DIR="$CARGO_HOME/lib"
 
 stages:
-  - test
-  - deploy
+  - name: test
+  - name: wheels-osx
+    if: tag =~ ^v
+  - name: wheels-linux
+    if: tag =~ ^v
+
+.deploy: &deploy
+  provider: script
+  script: twine upload --skip-existing dist/$(basename $TRAVIS_REPO_SLUG)*.*
+  skip_cleanup: true
+  on:
+    tags: true
+    repo: pybindings/bindings.rust.zbox
 
 .test: &test
   stage: test
   before_install:
     - ci/travis/setup.sh
   install:
-    - pip install -U setuptools setuptools-rust
+    - pip install -U -r ci/requirements.txt
   script:
     - python setup.py test
+
+.wheels-linux: &wheels-linux
+  stage: wheels-linux
+  sudo: required
+  os: linux
+  services:
+    - docker
+  before_install:
+    - docker pull $IMAGE
+  install:
+    - pip install -U -r ci/requirements.txt
+  script:
+    - docker run --rm -v `pwd`:/io -v $SCCACHE_DIR:/var/cache/sccache $IMAGE $ARCH /io/ci/travis/wheels-linux.sh
+  deploy:
+    <<: *deploy
+
+.wheels-osx: &wheels-osx
+  stage: wheels-osx
+  os: osx
+  language: generic
+  before_install:
+    - pyenv install $PYENV_VERSION
+    - export PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
+    - python -m ensurepip --user
+  install:
+    - pip install -U -r ci/requirements.txt
+  script:
+    - ci/travis/wheels-osx.sh
+  deploy:
+    <<: *deploy
 
 
 jobs:
@@ -38,20 +81,25 @@ jobs:
       <<: *test
     - python: 3.6
       <<: *test
+      before_deploy:
+        - python setup.py sdist
+      deploy:
+        <<: *deploy
 
-    # Wheels
-    - stage: deploy
-      os: linux
-      sudo: required
-      services:
-        - docker
-      env:
+    # Wheels - Linux
+    - env:
         - IMAGE=quay.io/pypa/manylinux1_x86_64
-      install:
-        - docker pull $IMAGE
-      script:
-        - docker run --rm -v `pwd`:/io $IMAGE /io/ci/travis/wheels-linux.sh
-        - ls dist
+      <<: *wheels-linux
+    - env:
+        - IMAGE=quay.io/pypa/manylinux1_i686
+      before_script:
+        - export ARCH=linux32
+      <<: *wheels-linux
+
+    # Wheels - OSX
+    - env:
+      - PYENV_VERSION=3.5.0
+      <<: *wheels-osx
 
 notifications:
   email:

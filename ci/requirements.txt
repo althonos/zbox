@@ -1,0 +1,7 @@
+pip
+setuptools
+setuptools-rust
+wheel
+twine
+docutils
+Pygments
