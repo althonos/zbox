@@ -1,4 +1,8 @@
-#![feature(proc_macro, specialization, const_fn)]
+#![feature(const_fn)]
+#![feature(extern_prelude)]
+#![feature(proc_macro)]
+#![feature(specialization)]
+#![feature(use_extern_macros)]
 #![allow(unused_imports)]
 
 #[macro_use]
@@ -13,10 +17,9 @@ mod fs;
 mod repo;
 mod utils;
 
-use ::pyo3::prelude::*;
-use ::pyo3::py::*;
+use pyo3::prelude::*;
 
-#[modinit(_zbox)]
+#[pymodinit(_zbox)]
 fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {
     // let authors_re = regex::Regex::new(r"(.*) <(.*)>").unwrap();
     // if let Some(captures) = authors_re.captures(env!("CARGO_PKG_AUTHORS")) {

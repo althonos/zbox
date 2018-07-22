@@ -1,21 +1,18 @@
 use std::error::Error as StdError;
 use std::time::UNIX_EPOCH;
 
-use pyo3::prelude::*;
-use pyo3::py::*;
 use pyo3::exc;
+use pyo3::prelude::*;
 
-use ::file::File;
-use ::file::Mode;
-use ::repo::errors::Error;
+use file::File;
+use file::Mode;
+use repo::errors::Error;
 
-
-#[class(subclass)]
+#[pyclass(subclass)]
 pub struct Repo {
     repo: ::zbox::Repo,
     token: PyToken,
 }
-
 
 impl Repo {
     pub fn new(token: PyToken, repo: ::zbox::Repo) -> Self {
@@ -64,8 +61,7 @@ impl Repo {
     }
 }
 
-
-#[methods]
+#[pymethods]
 impl Repo {
     // FIXME: allow any object instead of only &str as Path
 
@@ -107,9 +103,7 @@ impl Repo {
             .truncate(_mode.truncate)
             .open(&mut self.repo, path)
         {
-            Ok(file) => self.token
-                .py()
-                .init(|token| File::new(token, file, _mode)),
+            Ok(file) => self.token.py().init(|token| File::new(token, file, _mode)),
             Err(err) => Error::from(err).into(),
         }
     }

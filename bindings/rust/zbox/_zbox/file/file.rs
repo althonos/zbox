@@ -1,20 +1,18 @@
 use std::error::Error;
 use std::io::{Read, Seek, SeekFrom, Write};
 
-use pyo3::prelude::*;
-use pyo3::py::*;
 use pyo3::buffer::PyBuffer;
 use pyo3::class::context::*;
 use pyo3::exc;
+use pyo3::prelude::*;
 
-use ::file::errors::ioexc;
-use ::file::mode::Mode;
-use ::utils::QuickFind;
-use ::utils::Tell;
-
+use file::errors::ioexc;
+use file::mode::Mode;
+use utils::QuickFind;
+use utils::Tell;
 
 macro_rules! check_open {
-    ($file: expr) => {
+    ($file:expr) => {
         match $file {
             Some(ref mut f) => f,
             None => return Err(exc::ValueError::new("I/O operation on closed file.")),
@@ -22,39 +20,34 @@ macro_rules! check_open {
     };
 }
 
-
 macro_rules! check_readable {
-    ($file: expr, $mode: expr) => {
+    ($file:expr, $mode:expr) => {
         if !$mode.reading {
             return Err(ioexc::UnsupportedOperation::new("not readable"));
         } else {
             check_open!($file)
         }
-    }
+    };
 }
 
-
 macro_rules! check_writable {
-    ($file: expr, $mode: expr) => {
+    ($file:expr, $mode:expr) => {
         if !$mode.writing {
             return Err(ioexc::UnsupportedOperation::new("not writable"));
         } else {
             check_open!($file)
         }
-    }
+    };
 }
 
-
-#[class(subclass)]
+#[pyclass(subclass)]
 pub struct File {
     file: Option<::zbox::File>,
     mode: Mode,
     token: PyToken,
 }
 
-
 impl File {
-
     pub fn new(token: PyToken, file: ::zbox::File, mode: Mode) -> Self {
         Self {
             token,
@@ -64,7 +57,6 @@ impl File {
     }
 
     fn _readline(file: &mut ::zbox::File, buf: &mut Vec<u8>) -> PyResult<Vec<u8>> {
-
         let mut line = Vec::with_capacity(buf.len());
         let mut read: usize = 1;
         let mut end: usize = 1;
@@ -83,10 +75,9 @@ impl File {
 
         Ok(line)
     }
-
 }
 
-#[methods]
+#[pymethods]
 impl File {
     #[getter]
     fn mode(&self) -> PyResult<&str> {
@@ -117,7 +108,6 @@ impl File {
 
     #[args(size = "-1")]
     fn read(&mut self, mut size: i64) -> PyResult<Py<PyBytes>> {
-
         let mut data: Vec<u8>;
         let mut file = check_readable!(self.file, self.mode);
 
@@ -137,14 +127,15 @@ impl File {
     }
 
     fn readinto(&mut self, dest: &PyObjectRef) -> PyResult<usize> {
-
         let mut raw_data: &mut [u8];
         let mut file = check_readable!(self.file, self.mode);
         let buffer = PyBuffer::get(self.token.py(), dest)?;
 
         let ptr = buffer
             .as_mut_slice::<u8>(self.token.py())
-            .ok_or(exc::TypeError::new("object supporting the buffer API required"))?;
+            .ok_or(exc::TypeError::new(
+                "object supporting the buffer API required",
+            ))?;
 
         // The unsafe code is safe since we checked the buffer contains writable well-aligned bytes
         unsafe { raw_data = ::std::slice::from_raw_parts_mut(ptr.as_ptr() as *mut u8, ptr.len()) }
@@ -162,7 +153,6 @@ impl File {
 
     #[args(hint = "-1")]
     fn readlines(&mut self, hint: i64) -> PyResult<Vec<Py<PyBytes>>> {
-
         let file = check_readable!(self.file, self.mode);
         let mut buf = vec![0; *::constants::io::DEFAULT_BUFFER_SIZE];
 
@@ -196,24 +186,22 @@ impl File {
     }
 
     fn write(&mut self, data: &PyObjectRef) -> PyResult<usize> {
-
         let buffer = PyBuffer::get(self.token.py(), data)?;
         let mut file = check_writable!(self.file, self.mode);
         let pos = file.tell()?;
 
         let ptr = buffer
             .as_slice::<u8>(self.token.py())
-            .ok_or(exc::TypeError::new("object supporting the buffer API required"))?;
+            .ok_or(exc::TypeError::new(
+                "object supporting the buffer API required",
+            ))?;
 
         // The unsafe code is actually safe since we checked beforehand the buffer
         // contains read-only well-aligned bytes
-        let raw_data = unsafe {
-            ::std::slice::from_raw_parts(ptr.as_ptr() as *const u8, ptr.len())
-        };
+        let raw_data =
+            unsafe { ::std::slice::from_raw_parts(ptr.as_ptr() as *const u8, ptr.len()) };
 
-        let bytes_written = file
-            .write(raw_data)
-            .map_err(PyErr::from)?;
+        let bytes_written = file.write(raw_data).map_err(PyErr::from)?;
 
         file.finish();
         file.seek(SeekFrom::Start(pos + bytes_written as u64))?;
@@ -239,7 +227,7 @@ impl File {
         let py = self.token.py();
 
         // Import constants from the io module
-        use ::constants::io::{SEEK_CUR, SEEK_SET, SEEK_END};
+        use constants::io::{SEEK_CUR, SEEK_END, SEEK_SET};
 
         // Turn the (offset, whence) pair into a SeekFrom instance
         let seekfrom = if SEEK_CUR == whence {
@@ -269,9 +257,8 @@ impl File {
     }
 }
 
-#[proto]
+#[pyproto]
 impl PyIterProtocol for File {
-
     fn __iter__(&mut self) -> PyResult<PyObject> {
         Ok(self.into())
     }
@@ -286,9 +273,8 @@ impl PyIterProtocol for File {
     }
 }
 
-#[proto]
+#[pyproto]
 impl<'p> PyContextProtocol<'p> for File {
-
     fn __enter__(&mut self) -> PyResult<PyObject> {
         Ok(self.to_object(self.token.py()))
     }
@@ -297,7 +283,7 @@ impl<'p> PyContextProtocol<'p> for File {
         &mut self,
         ty: Option<&'p PyType>,
         value: Option<&'p PyObjectRef>,
-        traceback: Option<&'p PyObjectRef>
+        traceback: Option<&'p PyObjectRef>,
     ) -> PyResult<bool> {
         self.close();
         Ok(false)

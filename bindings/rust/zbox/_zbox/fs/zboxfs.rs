@@ -2,23 +2,21 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use pyo3::prelude::*;
-use pyo3::py::*;
 
-use ::file::File;
-use ::file::Mode;
-use ::fs::enums::ResourceType;
-use ::fs::errors::FSError;
-use ::fs::errors::fsexc;
+use file::File;
+use file::Mode;
+use fs::enums::ResourceType;
+use fs::errors::fsexc;
+use fs::errors::FSError;
 
-#[class(subclass)]
+#[pyclass(subclass)]
 pub struct ZboxFS {
     repo: ::zbox::Repo,
     token: PyToken,
 }
 
-#[methods]
+#[pymethods]
 impl ZboxFS {
-
     #[new]
     #[args(pwd = "\"\"", create = "true")]
     fn __new__(obj: &PyRawObject, uri: &str, pwd: &str, create: bool) -> PyResult<()> {
@@ -33,7 +31,9 @@ impl ZboxFS {
         if !overwrite && self.repo.is_file(dst) {
             fsexc::DestinationExists::new(dst.to_owned()).into()
         } else {
-            self.repo.copy(src, dst).map_err(|err| FSError::with_path(err, src).into())
+            self.repo
+                .copy(src, dst)
+                .map_err(|err| FSError::with_path(err, src).into())
         }
     }
 
@@ -51,7 +51,6 @@ impl ZboxFS {
 
     // FIXME: wait for PyO3/pyo3#141 and replace `PyString` with `PyUnicode`
     fn getinfo(&self, path: &str, namespaces: Option<Vec<&str>>) -> PyResult<&PyDict> {
-
         let meta = match self.repo.metadata(path) {
             Err(err) => return FSError::with_path(err, path).into(),
             Ok(meta) => meta,
@@ -71,7 +70,11 @@ impl ZboxFS {
         // Details namespace
         if ns.contains(&"details") {
             let details = PyDict::new(self.token.py());
-            let resource_type = if is_dir {ResourceType::Directory} else {ResourceType::File};
+            let resource_type = if is_dir {
+                ResourceType::Directory
+            } else {
+                ResourceType::File
+            };
             details.set_item("size", meta.len());
             details.set_item("type", resource_type as i32);
             info.set_item("details", details);
@@ -99,7 +102,7 @@ impl ZboxFS {
         permissions: Option<PyObject>,
         recreate: bool,
     ) -> PyResult<()> {
-        use ::zbox::Error::AlreadyExists;
+        use zbox::Error::AlreadyExists;
         match self.repo.create_dir(path) {
             Ok(()) => Ok(()),
             Err(AlreadyExists) if recreate => Ok(()),
@@ -116,7 +119,9 @@ impl ZboxFS {
         if self.repo.is_file(dst) && !overwrite {
             return fsexc::DestinationExists::new(dst.to_owned()).into();
         }
-        self.repo.rename(src, dst).map_err(|err| FSError::with_path(err, src).into())
+        self.repo
+            .rename(src, dst)
+            .map_err(|err| FSError::with_path(err, src).into())
     }
 
     #[args(mode = "\"rb\"", buffering = "-1", options = "**")]
@@ -127,11 +132,11 @@ impl ZboxFS {
         buffering: isize,
         options: Option<&PyDict>,
     ) -> PyResult<Py<File>> {
-        use ::zbox::Error::NotDir;
+        use zbox::Error::NotDir;
 
         let _mode = Mode::from(mode);
         if !_mode.create && !self.repo.path_exists(path) {
-            return fsexc::ResourceNotFound::new(path.to_owned()).into()
+            return fsexc::ResourceNotFound::new(path.to_owned()).into();
         }
 
         match ::zbox::OpenOptions::new()
@@ -141,11 +146,12 @@ impl ZboxFS {
             .create(_mode.create)
             .create_new(_mode.exclusive)
             .truncate(_mode.truncate)
-            .open(&mut self.repo, path) {
-                Ok(f) => { self.token.py().init(|token| File::new(token, f, _mode)) }
-                Err(NotDir) => { fsexc::ResourceNotFound::new(path.to_owned()).into() }
-                Err(err) => { FSError::with_path(err, path).into() }
-            }
+            .open(&mut self.repo, path)
+        {
+            Ok(f) => self.token.py().init(|token| File::new(token, f, _mode)),
+            Err(NotDir) => fsexc::ResourceNotFound::new(path.to_owned()).into(),
+            Err(err) => FSError::with_path(err, path).into(),
+        }
     }
 
     fn remove(&mut self, path: &str) -> PyResult<()> {
